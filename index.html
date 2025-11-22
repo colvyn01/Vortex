@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vortex | Breathing Trainer</title>
+    <meta name="description" content="A minimal, engineered breathing trainer.">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="device-shell">
+    <header>
+        <h1>Vortex</h1>
+        <p>Box breathing technique. Regulates autonomic nervous system via guided pacing.</p>
+    </header>
+
+    <main class="visualizer" aria-label="Breathing Visualization">
+        <div class="ring-container">
+            <svg viewBox="0 0 260 260">
+                <!-- Background Track -->
+                <circle class="ring-track" cx="130" cy="130" r="120"></circle>
+                <!-- Animated Progress -->
+                <circle class="ring-progress" id="progress-ring" cx="130" cy="130" r="120"></circle>
+            </svg>
+            <div class="readout" aria-live="polite" aria-atomic="true">
+                <span class="phase-label" id="phase-label">READY</span>
+                <span class="timer-display" id="timer-display">0.0</span>
+            </div>
+        </div>
+    </main>
+
+    <section class="controls-area">
+        <button class="btn btn-reset" id="btn-reset" title="Reset (R)">Reset</button>
+        <button class="btn btn-main" id="btn-toggle" title="Start/Pause (Space)">START</button>
+    </section>
+
+    <section class="settings-area">
+        <!-- Phase Configurations -->
+        <div class="params-grid">
+            <div class="param-group">
+                <label class="param-label" for="t-inhale">In</label>
+                <input type="number" id="t-inhale" value="13" min="1" max="60">
+            </div>
+            <div class="param-group">
+                <label class="param-label" for="t-hold1">Hold</label>
+                <input type="number" id="t-hold1" value="0" min="0" max="60">
+            </div>
+            <div class="param-group">
+                <label class="param-label" for="t-exhale">Out</label>
+                <input type="number" id="t-exhale" value="13" min="1" max="60">
+            </div>
+            <div class="param-group">
+                <label class="param-label" for="t-hold2">Hold</label>
+                <input type="number" id="t-hold2" value="0" min="0" max="60">
+            </div>
+        </div>
+
+        <!-- Sound Option -->
+        <div class="options-row">
+            <label class="sound-toggle">
+                <!-- Checked by default -->
+                <input type="checkbox" id="sound-check" class="sr-only" checked>
+                <span class="checkbox-visual"></span>
+                AUDIO CUE
+            </label>
+            <div style="font-family: var(--font-mono); font-size: 0.6rem; opacity: 0.5;">VER 1.0</div>
+        </div>
+    </section>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
