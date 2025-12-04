@@ -1,0 +1,12 @@
+LICENSE
+README.md
+pyproject.toml
+src/__init__.py
+src/cli.py
+src/server.py
+src/ui.py
+vortex.egg-info/PKG-INFO
+vortex.egg-info/SOURCES.txt
+vortex.egg-info/dependency_links.txt
+vortex.egg-info/entry_points.txt
+vortex.egg-info/top_level.txt

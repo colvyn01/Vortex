@@ -1,0 +1,29 @@
+Metadata-Version: 2.4
+Name: vortex
+Version: 1.0.0
+Summary: Fast, cross-platform file transfer between devices over local Wi-Fi
+Author: Colvyn
+License: MIT
+Project-URL: Repository, https://github.com/colvyn01/vortex
+Keywords: file-transfer,http-server,wifi,cross-platform
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Classifier: Topic :: Internet :: WWW/HTTP :: HTTP Servers
+Classifier: Topic :: System :: Filesystems
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
+# vortex
