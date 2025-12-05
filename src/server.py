@@ -621,8 +621,7 @@ def run_server(
         from .security import SecurityManager
 
         security_manager = SecurityManager(
-            enable_https=use_https,
-            enable_token_auth=use_token_auth,
+            enable_auth=use_token_auth,
         )
 
         # Regenerate token if requested
