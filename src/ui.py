@@ -20,9 +20,7 @@ from .scripts import JS_UPLOAD_HANDLER
 from .styles import CSS_STYLESHEET
 
 
-# =============================================================================
-# SIZE FORMATTING
-# =============================================================================
+# Size Formatting
 
 # Units for human-readable file sizes
 _SIZE_UNITS = ("B", "KB", "MB", "GB", "TB", "PB")
@@ -47,9 +45,7 @@ def format_size(size_bytes: int) -> str:
     return f"{size:.1f} {_SIZE_UNITS[-1]}"
 
 
-# =============================================================================
-# HTML LAYOUT
-# =============================================================================
+# HTML Layout
 
 
 def render_layout(title: str, body_html: str) -> str:
@@ -100,9 +96,7 @@ def render_layout(title: str, body_html: str) -> str:
 """
 
 
-# =============================================================================
-# DIRECTORY LISTING
-# =============================================================================
+# Directory Listing
 
 
 def _build_file_table_rows(real_path: Path, base_directory: str) -> List[str]:

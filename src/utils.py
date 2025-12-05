@@ -17,7 +17,7 @@ from typing import Optional, Tuple
 
 from .constants import CONTENT_TYPE_OCTET, MIME_TYPES
 
-# --- Filename Sanitization ---
+# Filename Sanitization
 
 # Characters that are invalid in Windows filenames: \ / : * ? " < > |
 INVALID_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
@@ -50,7 +50,7 @@ def sanitize_filename(filename: str) -> str:
     return sanitized
 
 
-# --- Path Security ---
+# Path Security
 
 
 def is_path_safe(path: Path, base_directory: Path) -> bool:
@@ -80,7 +80,7 @@ def is_path_safe(path: Path, base_directory: Path) -> bool:
         return False
 
 
-# --- MIME Type Detection ---
+# MIME Type Detection
 
 
 def get_mime_type(file_path: str) -> str:
@@ -100,7 +100,7 @@ def get_mime_type(file_path: str) -> str:
     return MIME_TYPES.get(ext, CONTENT_TYPE_OCTET)
 
 
-# --- HTTP Header Utilities ---
+# HTTP Header Utilities
 
 
 def generate_etag(file_path: str, file_stat: os.stat_result) -> str:

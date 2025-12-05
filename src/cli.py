@@ -20,18 +20,14 @@ from typing import Optional
 from .server import run_server
 
 
-# =============================================================================
-# CONFIGURATION DEFAULTS
-# =============================================================================
+# Configuration Defaults
 
 DEFAULT_PORT = 8000
 DEFAULT_DIR = "."
 DEFAULT_MAX_PARALLEL = 4
 
 
-# =============================================================================
-# PID FILE MANAGEMENT
-# =============================================================================
+# PID File Management
 # The PID file stores the process ID of a running Vortex server, allowing
 # the --stop command to find and terminate it. Location varies by platform.
 
@@ -101,9 +97,7 @@ def _read_pid_file() -> Optional[int]:
     return None
 
 
-# =============================================================================
-# PROCESS MANAGEMENT
-# =============================================================================
+# Process Management
 # Cross-platform utilities for checking if a process exists and terminating it.
 
 
@@ -185,9 +179,7 @@ def _terminate_process(pid: int) -> bool:
             return False
 
 
-# =============================================================================
-# ARGUMENT PARSER
-# =============================================================================
+# Argument Parser
 
 
 def _create_parser() -> argparse.ArgumentParser:
@@ -232,13 +224,34 @@ def _create_parser() -> argparse.ArgumentParser:
         default=DEFAULT_MAX_PARALLEL,
         help=f"Max parallel uploads from browser (default: {DEFAULT_MAX_PARALLEL})",
     )
+    parser.add_argument(
+        "--mode",
+        choices=["auto", "localhost", "lan"],
+        default="auto",
+        help="Address detection mode (default: auto)",
+    )
+
+    # Security options
+    parser.add_argument(
+        "--https",
+        action="store_true",
+        help="Enable HTTPS with self-signed certificate",
+    )
+    parser.add_argument(
+        "--secure",
+        action="store_true",
+        help="Enable token authentication for all requests",
+    )
+    parser.add_argument(
+        "--new-token",
+        action="store_true",
+        help="Generate a new authentication token (use with --secure)",
+    )
 
     return parser
 
 
-# =============================================================================
-# MAIN ENTRY POINT
-# =============================================================================
+# Main Entry Point
 
 
 def main() -> None:
@@ -250,7 +263,7 @@ def main() -> None:
     parser = _create_parser()
     args = parser.parse_args()
 
-    # --- Handle --stop ---
+    # Handle --stop
     if args.stop:
         pid = _read_pid_file()
 
@@ -271,7 +284,7 @@ def main() -> None:
             print("Failed to stop Vortex server.")
         return
 
-    # --- Handle --start ---
+    # Handle --start
     if args.start:
         # Check if already running
         existing_pid = _read_pid_file()
@@ -283,11 +296,19 @@ def main() -> None:
         # Write PID file and start server
         _write_pid_file()
         try:
-            run_server(args.dir, args.port, args.max_parallel)
+            run_server(
+                args.dir,
+                args.port,
+                args.max_parallel,
+                args.mode,
+                use_https=args.https,
+                use_token_auth=args.secure,
+                regenerate_token=args.new_token,
+            )
         finally:
             _remove_pid_file()
         return
 
-    # --- No action specified ---
+    # No action specified
     parser.print_help()
 

@@ -11,18 +11,14 @@ display and parallel multi-file uploads with progress tracking.
 
 JS_UPLOAD_HANDLER = """
 document.addEventListener('DOMContentLoaded', function() {
-  // ==========================================================================
-  // CONFIGURATION
-  // ==========================================================================
+  // Configuration
 
   // Maximum number of simultaneous upload connections.
   // Higher values can improve throughput but may overwhelm slower networks.
   var MAX_PARALLEL = 4;
 
 
-  // ==========================================================================
-  // FILE INPUT DISPLAY
-  // ==========================================================================
+  // File Input Display
   // Update the filename display when user selects files.
 
   var fileInputs = document.querySelectorAll('.file-input input[type="file"]');
@@ -36,7 +32,13 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!nameSpan) return;
 
       if (input.files && input.files.length > 0) {
-        if (input.files.length === 1) {
+        if (input.files.length > 10) {
+          // Large selection: show processing indicator, yield to UI thread
+          nameSpan.textContent = 'Processing ' + input.files.length + ' files...';
+          setTimeout(function() {
+            nameSpan.textContent = input.files.length + ' files selected';
+          }, 50);
+        } else if (input.files.length === 1) {
           nameSpan.textContent = input.files[0].name;
         } else {
           nameSpan.textContent = input.files.length + ' files selected';
@@ -48,9 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
 
-  // ==========================================================================
-  // PARALLEL MULTI-FILE UPLOAD
-  // ==========================================================================
+  // Parallel Multi-File Upload
   // Handles uploading multiple files simultaneously with aggregate progress.
 
   var uploadForm = document.querySelector('form[enctype="multipart/form-data"]');
@@ -213,9 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
 
-  // ==========================================================================
-  // UTILITY FUNCTIONS
-  // ==========================================================================
+  // Utility Functions
 
   /**
    * Format bytes as human-readable string (e.g., "1.5 MB").

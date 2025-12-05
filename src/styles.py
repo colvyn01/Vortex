@@ -11,32 +11,30 @@ and responsive behavior for mobile devices.
 """
 
 CSS_STYLESHEET = """
-/* =============================================================================
-   DESIGN SYSTEM & CSS VARIABLES
-   ============================================================================= */
+/* Design System & CSS Variables */
 
 :root {
-  /* --- Color Palette --- */
+  /* Color Palette */
   --bg-color: #d8d8d8;
   --surface-color: #ffffff;
   --surface-alt: #fafafa;
   --text-main: #111111;
   --text-dim: #555555;
 
-  /* --- Accent Colors --- */
+  /* Accent Colors */
   --accent-color: #ff3b00;
   --accent-hover: #e03200;
   --error-color: #cc0000;
 
-  /* --- Borders --- */
+  /* Borders */
   --border-color: #000000;
   --border-light: #dddddd;
   --border-width: 2px;
 
-  /* --- Spacing & Sizing --- */
+  /* Spacing & Sizing */
   --radius: 4px;
 
-  /* --- Typography --- */
+  /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono",
@@ -44,9 +42,7 @@ CSS_STYLESHEET = """
 }
 
 
-/* =============================================================================
-   RESET & BASE STYLES
-   ============================================================================= */
+/* Reset & Base Styles */
 
 * {
   box-sizing: border-box;
@@ -87,9 +83,7 @@ body {
 }
 
 
-/* =============================================================================
-   LAYOUT CONTAINER (Device Shell)
-   ============================================================================= */
+/* Layout Container (Device Shell) */
 
 .device-shell {
   background: var(--surface-color);
@@ -101,7 +95,7 @@ body {
   min-height: 0;
 }
 
-/* --- Desktop Layout --- */
+/* Desktop Layout */
 @media (min-width: 900px) {
   body {
     align-items: center;
@@ -116,7 +110,7 @@ body {
   }
 }
 
-/* --- Mobile Layout --- */
+/* Mobile Layout */
 @media (max-width: 600px) {
   body {
     background-size: 16px 16px;
@@ -133,9 +127,7 @@ body {
 }
 
 
-/* =============================================================================
-   HEADER
-   ============================================================================= */
+/* Header */
 
 .device-header {
   padding: 0.9rem 1rem 0.4rem;
@@ -160,9 +152,7 @@ body {
 }
 
 
-/* =============================================================================
-   SUBHEADER / PATH BAR
-   ============================================================================= */
+/* Subheader / Path Bar */
 
 .device-subheader {
   padding: 0.4rem 1rem;
@@ -182,9 +172,7 @@ body {
 }
 
 
-/* =============================================================================
-   MAIN CONTENT AREA
-   ============================================================================= */
+/* Main Content Area */
 
 .device-main {
   padding: 0.8rem 1rem 0.8rem;
@@ -195,7 +183,7 @@ body {
   min-height: 0;
 }
 
-/* --- Tablet/Mobile: Stack columns --- */
+/* Tablet/Mobile: Stack columns */
 @media (max-width: 900px) {
   .device-main {
     grid-template-columns: 1fr;
@@ -209,9 +197,7 @@ body {
 }
 
 
-/* =============================================================================
-   PANEL COMPONENT
-   ============================================================================= */
+/* Panel Component */
 
 .panel {
   border: var(--border-width) solid var(--border-color);
@@ -251,9 +237,7 @@ body {
 }
 
 
-/* =============================================================================
-   FILE INPUT & UPLOAD CONTROLS
-   ============================================================================= */
+/* File Input & Upload Controls */
 
 .upload-row {
   display: flex;
@@ -268,7 +252,7 @@ body {
   }
 }
 
-/* --- Custom File Input --- */
+/* Custom File Input */
 
 .file-input {
   position: relative;
@@ -320,9 +304,7 @@ body {
 }
 
 
-/* =============================================================================
-   BUTTONS
-   ============================================================================= */
+/* Buttons */
 
 .btn {
   appearance: none;
@@ -368,7 +350,7 @@ body {
   box-shadow: none;
 }
 
-/* --- Download All Button --- */
+/* Download All Button */
 
 .btn-download {
   display: inline-flex;
@@ -381,7 +363,7 @@ body {
   min-height: 36px;
 }
 
-/* --- Mobile Button Adjustments --- */
+/* Mobile Button Adjustments */
 
 @media (max-width: 600px) {
   .upload-row {
@@ -401,9 +383,7 @@ body {
 }
 
 
-/* =============================================================================
-   FILE LIST TABLE
-   ============================================================================= */
+/* File List Table */
 
 .file-list {
   border-top: 1px solid var(--border-color);
@@ -448,9 +428,7 @@ td a {
 }
 
 
-/* =============================================================================
-   LINKS
-   ============================================================================= */
+/* Links */
 
 a {
   color: var(--accent-color);
@@ -469,7 +447,7 @@ a:active {
   opacity: 0.8;
 }
 
-/* --- Mobile Table Adjustments --- */
+/* Mobile Table Adjustments */
 
 @media (max-width: 600px) {
   table {
@@ -495,9 +473,7 @@ a:active {
 }
 
 
-/* =============================================================================
-   FOOTER / STATUS BAR
-   ============================================================================= */
+/* Footer / Status Bar */
 
 .device-footer {
   padding: 0.5rem 1.25rem;
@@ -522,9 +498,7 @@ a:active {
 }
 
 
-/* =============================================================================
-   UPLOAD PROGRESS INDICATOR
-   ============================================================================= */
+/* Upload Progress Indicator */
 
 .upload-progress {
   display: none;
@@ -561,9 +535,7 @@ a:active {
 }
 
 
-/* =============================================================================
-   ERROR MESSAGES
-   ============================================================================= */
+/* Error Messages */
 
 .upload-error {
   color: var(--error-color);

@@ -10,18 +10,19 @@ This module provides the core HTTP server functionality including:
 - Request handler with streaming file transfers
 - HTTP Range request support for media seeking
 - Directory ZIP download capability
-- Security hardening (path traversal protection, security headers)
+- Security hardening (path traversal protection, security headers, HTTPS)
 """
 
 import io
 import os
 import socket
+import ssl
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import formatdate
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
 from .constants import (
@@ -29,7 +30,7 @@ from .constants import (
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_MULTIPART,
     CONTENT_TYPE_ZIP,
-    DNS_SERVER,
+    DNS_SERVERS,
     ENCODING,
     FALLBACK_IP,
     MAX_WORKERS,
@@ -38,10 +39,11 @@ from .ui import render_directory_listing
 from .upload import UploadResult, extract_boundary, parse_multipart_streaming
 from .utils import generate_etag, get_mime_type, is_path_safe, parse_range_header
 
+if TYPE_CHECKING:
+    from .security import SecurityManager
 
-# =============================================================================
-# THREAD POOL SERVER
-# =============================================================================
+
+# Thread Pool Server
 
 
 class PooledHTTPServer(HTTPServer):
@@ -117,9 +119,7 @@ class PooledHTTPServer(HTTPServer):
         self.executor.shutdown(wait=False, cancel_futures=True)
 
 
-# =============================================================================
-# HTTP REQUEST HANDLER
-# =============================================================================
+# HTTP Request Handler
 
 
 class VortexHandler(SimpleHTTPRequestHandler):
@@ -131,17 +131,22 @@ class VortexHandler(SimpleHTTPRequestHandler):
         - Chunked file streaming for memory-efficient large transfers
         - Comprehensive MIME type detection
         - Proper caching headers (ETag, Last-Modified, Cache-Control)
-        - Security headers (X-Content-Type-Options, X-Frame-Options)
+        - Security headers (X-Content-Type-Options, X-Frame-Options, CSP)
         - Path traversal protection
+        - Rate limiting and optional authentication
         - Robust error handling for network and filesystem errors
 
     Attributes:
         base_directory: Root directory being served (absolute path).
         protocol_version: HTTP/1.1 for persistent connections.
+        security_manager: Optional security manager for auth/rate limiting.
+        is_https: Whether connection is using HTTPS.
     """
 
     base_directory: str
     protocol_version = "HTTP/1.1"
+    security_manager: Optional["SecurityManager"] = None
+    is_https: bool = False
 
     def __init__(
         self,
@@ -176,16 +181,55 @@ class VortexHandler(SimpleHTTPRequestHandler):
         """Suppress default logging for cleaner output."""
         pass
 
-    # -------------------------------------------------------------------------
     # Security Helpers
-    # -------------------------------------------------------------------------
 
     def _send_security_headers(self) -> None:
         """Send security headers to prevent common attacks."""
-        # Prevent MIME type sniffing attacks
-        self.send_header("X-Content-Type-Options", "nosniff")
-        # Prevent clickjacking by disallowing framing
-        self.send_header("X-Frame-Options", "DENY")
+        if self.security_manager:
+            # Use comprehensive security headers from security manager
+            for header, value in self.security_manager.get_security_headers(
+                self.is_https
+            ).items():
+                self.send_header(header, value)
+        else:
+            # Fallback: basic security headers
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+
+    def _validate_security(self) -> bool:
+        """
+        Validate request against security manager.
+
+        Returns:
+            True if request is allowed, False if blocked (error sent).
+        """
+        if not self.security_manager:
+            return True
+
+        # Get token from query string or header
+        parsed = urlparse(self.path)
+        query_params = parse_qs(parsed.query)
+        token = None
+
+        # Check query string first
+        if "token" in query_params:
+            token = query_params["token"][0]
+        # Then check Authorization header
+        elif auth_header := self.headers.get("Authorization"):
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+
+        # Validate request
+        client_ip = self.client_address[0]
+        allowed, message, status_code = self.security_manager.validate_request(
+            client_ip, token
+        )
+
+        if not allowed:
+            self._send_error_safe(status_code, message)
+            return False
+
+        return True
 
     def _is_request_path_safe(self, path: str) -> bool:
         """
@@ -201,9 +245,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
         """
         return is_path_safe(Path(path), Path(self.base_directory))
 
-    # -------------------------------------------------------------------------
     # Response Helpers
-    # -------------------------------------------------------------------------
 
     def _send_html(self, content: str, status: int = 200) -> None:
         """Send an HTML response with proper headers."""
@@ -222,9 +264,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
 
-    # -------------------------------------------------------------------------
     # ZIP Download Handler
-    # -------------------------------------------------------------------------
 
     def _handle_zip_download(self, dir_path: str, include_body: bool = True) -> None:
         """
@@ -285,9 +325,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 pass
 
-    # -------------------------------------------------------------------------
     # File Streaming
-    # -------------------------------------------------------------------------
 
     def _stream_file(self, file_path: str, start: int, end: int) -> bool:
         """
@@ -322,9 +360,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
         except OSError:
             return False
 
-    # -------------------------------------------------------------------------
     # HTTP Method Handlers
-    # -------------------------------------------------------------------------
 
     def do_HEAD(self) -> None:
         """Handle HEAD requests (same as GET but without body)."""
@@ -341,6 +377,10 @@ class VortexHandler(SimpleHTTPRequestHandler):
 
     def _handle_get_or_head(self, include_body: bool = True) -> None:
         """Common handler for GET and HEAD requests."""
+        # Security validation (rate limiting and token auth)
+        if not self._validate_security():
+            return
+
         # Parse URL for query parameters
         parsed = urlparse(self.path)
         query_params = parse_qs(parsed.query)
@@ -351,7 +391,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
             self._send_error_safe(403, "Access denied")
             return
 
-        # --- Directory Handling ---
+        # Directory Handling
         if os.path.isdir(path):
             # ZIP download request
             if query_params.get("download") == ["zip"]:
@@ -368,12 +408,12 @@ class VortexHandler(SimpleHTTPRequestHandler):
                 self._send_error_safe(403, f"Cannot access directory: {e}")
             return
 
-        # --- File Not Found ---
+        # File Not Found
         if not os.path.isfile(path):
             self._send_error_safe(404, "File not found")
             return
 
-        # --- File Handling ---
+        # File Handling
         try:
             file_stat = os.stat(path)
             file_size = file_stat.st_size
@@ -394,7 +434,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             return
 
-        # --- Range Request Handling ---
+        # Range Request Handling
         range_header = self.headers.get("Range")
 
         if range_header:
@@ -419,7 +459,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
             content_length = file_size
             self.send_response(200)
 
-        # --- Send Headers ---
+        # Send Headers
         self.send_header("Content-Type", mime_type)
         self.send_header("Content-Length", str(content_length))
         self.send_header("Accept-Ranges", "bytes")
@@ -441,6 +481,10 @@ class VortexHandler(SimpleHTTPRequestHandler):
         Uses streaming to handle large files without loading them entirely
         into memory. This allows uploading files of any size smoothly.
         """
+        # Security validation (rate limiting and token auth)
+        if not self._validate_security():
+            return
+
         content_type = self.headers.get("Content-Type", "")
 
         if CONTENT_TYPE_MULTIPART not in content_type:
@@ -488,39 +532,72 @@ class VortexHandler(SimpleHTTPRequestHandler):
             pass
 
 
-# =============================================================================
-# NETWORK UTILITIES
-# =============================================================================
+# Network Utilities
 
 
-def get_local_ip() -> str:
+def get_local_ip(mode: str = "auto") -> Tuple[str, str]:
     """
-    Detect the local LAN IP address for shareable URLs.
+    Detect the appropriate server address based on mode.
 
-    Uses a UDP socket to determine which local IP would be used
-    to reach an external address. This works without actually
-    sending any data, just by checking routing.
+    Args:
+        mode: Address detection mode.
+            - 'auto': Intelligent detection (try LAN, fallback to localhost)
+            - 'localhost': Force localhost only (127.0.0.1)
+            - 'lan': Force LAN detection (fail if no LAN found)
 
     Returns:
-        The local IP address (e.g., "192.168.1.100"), or "127.0.0.1"
-        if detection fails.
+        Tuple of (bind_address, display_address).
+        bind_address is always '0.0.0.0' for accepting connections.
+        display_address is the user-facing IP for sharing.
     """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    bind_address = "0.0.0.0"
+
+    if mode == "localhost":
+        return bind_address, "localhost"
+
+    # Try UDP socket trick with multiple DNS servers
+    for dns_server in DNS_SERVERS:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(1.0)
+            sock.connect(dns_server)
+            ip = sock.getsockname()[0]
+            sock.close()
+            # Skip IPv6 addresses (contain ':')
+            if ":" not in ip and not ip.startswith("127."):
+                return bind_address, ip
+        except OSError:
+            continue
+
+    # Fallback: try gethostname + gethostbyname
     try:
-        sock.connect(DNS_SERVER)
-        return sock.getsockname()[0]
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        if ":" not in ip and not ip.startswith("127."):
+            return bind_address, ip
     except OSError:
-        return FALLBACK_IP
-    finally:
-        sock.close()
+        pass
+
+    # Final fallback
+    if mode == "lan":
+        # LAN mode requires a LAN IP - fail if not found
+        raise RuntimeError("No LAN IP address found. Check your network connection.")
+
+    return bind_address, FALLBACK_IP
 
 
-# =============================================================================
-# SERVER ENTRY POINT
-# =============================================================================
+# Server Entry Point
 
 
-def run_server(directory: str, port: int, max_parallel: int = 4) -> None:
+def run_server(
+    directory: str,
+    port: int,
+    max_parallel: int = 4,
+    address_mode: str = "auto",
+    use_https: bool = False,
+    use_token_auth: bool = False,
+    regenerate_token: bool = False,
+) -> None:
     """
     Start the Vortex HTTP server.
 
@@ -528,24 +605,70 @@ def run_server(directory: str, port: int, max_parallel: int = 4) -> None:
         directory: Path to the directory to serve.
         port: Port number to listen on.
         max_parallel: Max parallel uploads hint for browser (unused server-side).
+        address_mode: Address detection mode ('auto', 'localhost', 'lan').
+        use_https: Enable HTTPS with self-signed certificate.
+        use_token_auth: Require token authentication for all requests.
+        regenerate_token: Generate a new authentication token.
 
     The server uses a thread pool to handle multiple concurrent connections
     efficiently, with limits to prevent resource exhaustion.
     """
     resolved_directory = str(Path(directory).resolve())
 
+    # Initialize security manager if any security features are enabled
+    security_manager = None
+    if use_https or use_token_auth:
+        from .security import SecurityManager
+
+        security_manager = SecurityManager(
+            enable_https=use_https,
+            enable_token_auth=use_token_auth,
+        )
+
+        # Regenerate token if requested
+        if regenerate_token:
+            security_manager.regenerate_token()
+
+        # Configure handler class with security settings
+        VortexHandler.security_manager = security_manager
+        VortexHandler.is_https = use_https
+
     def handler_factory(*args: Any, **kwargs: Any) -> VortexHandler:
         return VortexHandler(*args, directory=resolved_directory, **kwargs)
 
-    server_address = ("0.0.0.0", port)
+    bind_address, display_address = get_local_ip(address_mode)
+    server_address = (bind_address, port)
     httpd = PooledHTTPServer(server_address, handler_factory, max_workers=MAX_WORKERS)
 
-    ip = get_local_ip()
+    # Wrap socket with SSL if HTTPS is enabled
+    if use_https and security_manager:
+        ssl_context = security_manager.get_ssl_context()
+        if ssl_context:
+            httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
+            protocol = "https"
+        else:
+            print("Warning: Failed to create SSL context, falling back to HTTP")
+            protocol = "http"
+    else:
+        protocol = "http"
+
     print("Vortex active")
     print(f"Serving directory: {resolved_directory}")
-    print(f"Share this on your Wi-Fi:  http://{ip}:{port}/")
+    print(f"Share this on your network: {protocol}://{display_address}:{port}/")
     print(f"Max concurrent connections: {MAX_WORKERS}")
-    print("Press Ctrl+C to stop.")
+
+    # Display security information
+    if security_manager:
+        if use_token_auth:
+            token = security_manager.get_token()
+            print(f"\n🔐 Token authentication ENABLED")
+            print(f"   Access URL: {protocol}://{display_address}:{port}/?token={token}")
+            print(f"   Token: {token}")
+        if use_https:
+            print(f"\n🔒 HTTPS ENABLED (self-signed certificate)")
+            print("   Browsers may show a security warning - this is expected.")
+
+    print("\nPress Ctrl+C to stop.")
 
     try:
         httpd.serve_forever()
@@ -553,5 +676,8 @@ def run_server(directory: str, port: int, max_parallel: int = 4) -> None:
         pass
     finally:
         print("\nVortex deactivated.")
+        # Clear class-level security settings
+        VortexHandler.security_manager = None
+        VortexHandler.is_https = False
         httpd.shutdown()
         httpd.server_close()

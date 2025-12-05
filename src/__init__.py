@@ -26,7 +26,7 @@ Example:
     >>> run_server("/path/to/share", port=8000)
 """
 
-# --- Public API ---
+# Public API
 # These are the main entry points for using Vortex programmatically.
 
 from .cli import main

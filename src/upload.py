@@ -21,7 +21,7 @@ from .constants import CHUNK_SIZE, ENCODING, MAX_HEADER_SIZE
 from .utils import sanitize_filename
 
 
-# --- Upload Result ---
+# Upload Result
 
 
 @dataclass
@@ -38,7 +38,7 @@ class UploadResult:
     error_message: Optional[str] = None
 
 
-# --- Multipart Parsing ---
+# Multipart Parsing
 
 
 def extract_boundary(content_type: str) -> Optional[str]:
@@ -98,7 +98,7 @@ def parse_multipart_streaming(
     boundary_bytes = ("--" + boundary).encode(ENCODING)
     remaining = content_length
 
-    # --- Phase 1: Find the first boundary ---
+    # Phase 1: Find the first boundary
     # Read until we encounter the boundary that starts the file part.
 
     header_buffer = b""
@@ -114,7 +114,7 @@ def parse_multipart_streaming(
         if len(header_buffer) > MAX_HEADER_SIZE:
             return UploadResult(success=False, error_message="Headers too large")
 
-    # --- Phase 2: Parse headers after boundary ---
+    # Phase 2: Parse headers after boundary
     # Extract Content-Disposition to get the filename.
 
     boundary_pos = header_buffer.find(boundary_bytes)
@@ -159,7 +159,7 @@ def parse_multipart_streaming(
 
     dest_path = os.path.join(base_directory, filename)
 
-    # --- Phase 3: Stream file data to temporary file ---
+    # Phase 3: Stream file data to temporary file
     # Write to temp file first, then move to destination atomically.
     # This prevents partial/corrupt files if the upload is interrupted.
 
@@ -226,7 +226,7 @@ def parse_multipart_streaming(
                             buffer = buffer[:-2]
                         temp_file.write(buffer)
 
-        # --- Phase 4: Move temp file to final destination ---
+        # Phase 4: Move temp file to final destination
         # Remove existing file if present, then atomic rename.
 
         if os.path.exists(dest_path):
