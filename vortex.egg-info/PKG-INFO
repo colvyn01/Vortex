@@ -26,4 +26,1523 @@ Description-Content-Type: text/markdown
 License-File: LICENSE
 Dynamic: license-file
 
-# vortex
+# Vortex - Local File Gateway
+
+Vortex is a production-ready file sharing server for local networks. Share files instantly between devices on the same WiFi network without configuration, cloud services, or external dependencies.
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Key Features](#key-features)
+3. [Requirements](#requirements)
+4. [Installation](#installation)
+5. [Uninstallation](#uninstallation)
+6. [Quick Start](#quick-start)
+7. [Usage](#usage)
+8. [Advanced Features](#advanced-features)
+9. [Command Reference](#command-reference)
+10. [Web Interface](#web-interface)
+11. [Performance](#performance)
+12. [Security](#security)
+13. [Troubleshooting](#troubleshooting)
+14. [Project Structure](#project-structure)
+15. [Contributing](#contributing)
+16. [License](#license)
+
+## Overview
+
+Vortex allows you to quickly and reliably share files across devices on a trusted local network. Whether you are transferring files between your laptop, phone, and tablet, or sharing files with colleagues in the same office, Vortex provides a simple, secure, and fast solution without requiring cloud services or external dependencies.
+
+**Technical Details:**
+- Built with: Python standard library only (no external dependencies)
+- Supports: Python 3.8 or higher
+- Platforms: Windows, macOS, Linux
+- License: MIT
+- Status: Production ready
+
+## Key Features
+
+1. **Zero Configuration** - Works immediately after installation without setup
+2. **Universal Access** - Open any web browser to upload, download, and manage files
+3. **No File Size Limits** - Stream files of any size without loading into memory
+4. **Mobile Friendly** - Fully responsive design works on phones and tablets
+5. **Parallel Uploads** - Upload multiple files simultaneously with real-time progress
+6. **Batch Download** - Download entire directories as ZIP archives
+7. **HTTP Range Support** - Resume interrupted downloads and seek in video/audio
+8. **Cross Platform** - Same functionality on Windows, macOS, and Linux
+9. **No External Dependencies** - Uses Python standard library only
+10. **Optional Security** - HTTPS, token authentication, and rate limiting available
+
+## Requirements
+
+### Mandatory Requirements
+
+- Python 3.8 or higher
+- pip (Python package installer)
+- Git (for cloning from repository)
+
+### Optional Requirements
+
+- OpenSSL (required only for HTTPS support on Windows; pre-installed on macOS and Linux)
+
+### Checking Python Version
+
+Open a terminal and run:
+
+```bash
+python --version
+```
+
+Output should show: `Python 3.8.0` or higher
+
+### Checking pip Installation
+
+Open a terminal and run:
+
+```bash
+pip --version
+```
+
+Output should show a version number and Python path.
+
+## Installation
+
+### Installation Method 1: Using Git (Recommended)
+
+This method is recommended because it allows easy updates and contributes to the project.
+
+Step 1: Clone the repository
+
+```bash
+git clone https://github.com/colvyn01/vortex.git
+cd vortex
+```
+
+Step 2: Install in editable mode
+
+```bash
+pip install -e .
+```
+
+The `-e` flag installs Vortex in editable mode. Changes to the source code are reflected immediately without reinstalling.
+
+Step 3: Verify installation
+
+```bash
+vortex --help
+```
+
+You should see the help menu with available commands.
+
+### Installation Method 2: Direct pip Installation
+
+This method installs a released version.
+
+Step 1: Navigate to the vortex directory
+
+```bash
+cd vortex
+```
+
+Step 2: Install the package
+
+```bash
+pip install .
+```
+
+Step 3: Verify installation
+
+```bash
+vortex --help
+```
+
+You should see the help menu with available commands.
+
+### Installation Method 3: From PyPI (When Released)
+
+Once Vortex is published to PyPI, you can install directly:
+
+```bash
+pip install vortex
+```
+
+Then verify:
+
+```bash
+vortex --help
+```
+
+### Troubleshooting Installation
+
+**Problem: "python: command not found" or "pip: command not found"**
+
+Solution: Python is not installed or not in your PATH.
+
+- Windows: Install from [python.org](https://www.python.org/downloads/) and check "Add Python to PATH"
+- macOS: Install with `brew install python3`
+- Linux: Install with `sudo apt-get install python3 python3-pip`
+
+**Problem: "Permission denied" when running pip**
+
+Solution: Use the `--user` flag:
+
+```bash
+pip install --user -e .
+```
+
+**Problem: "git: command not found"**
+
+Solution: Install Git from [git-scm.com](https://git-scm.com/download)
+
+## Uninstallation
+
+### Complete Uninstallation Steps
+
+Follow these steps in order to completely remove Vortex from your system.
+
+### Step 1: Stop Any Running Vortex Servers
+
+Open a terminal and run:
+
+```bash
+vortex --stop
+```
+
+If no server is running, you will see: `No running Vortex server found.`
+
+### Step 2: Uninstall the Python Package
+
+```bash
+pip uninstall vortex
+```
+
+When prompted, type `y` and press Enter to confirm.
+
+If you installed in editable mode, also run:
+
+```bash
+pip uninstall -e .
+```
+
+### Step 3: Remove Configuration Files (Optional)
+
+Vortex stores tokens and certificates in your home directory. To remove these:
+
+**On Windows:**
+```bash
+rmdir %USERPROFILE%\.vortex
+```
+
+**On macOS and Linux:**
+```bash
+rm -rf ~/.vortex
+```
+
+### Step 4: Remove Source Code (If Using Git)
+
+If you cloned from Git, remove the directory:
+
+**On Windows (Command Prompt):**
+```bash
+rmdir /s vortex
+```
+
+**On macOS and Linux:**
+```bash
+rm -rf vortex
+```
+
+### Step 5: Verify Uninstallation
+
+```bash
+vortex --help
+```
+
+You should see: `vortex: command not found` or equivalent error message.
+
+If successful, Vortex is completely uninstalled.
+
+### Keeping Configuration Files
+
+If you want to keep your tokens and certificates for future use, do NOT remove the `~/.vortex` directory in Step 3.
+
+### Keeping Source Code
+
+If you plan to reinstall from the same directory, do NOT remove the `vortex` directory in Step 4.
+
+## Quick Start
+
+### Starting Vortex
+
+Open a terminal and run:
+
+```bash
+vortex --start
+```
+
+The server will start in the current directory and display output like:
+
+```
+Vortex active
+Serving directory: /Users/you/Desktop
+Share this on your network: http://192.168.1.100:8000
+Max concurrent connections: 100
+Press Ctrl+C to stop.
+```
+
+### Opening in Browser
+
+1. Copy the URL from the output (example: `http://192.168.1.100:8000`)
+2. Open a web browser on another device connected to the same WiFi network
+3. Paste the URL into the address bar
+4. You can now upload and download files
+
+### Stopping Vortex
+
+Open a terminal and run:
+
+```bash
+vortex --stop
+```
+
+Or press `Ctrl+C` in the terminal where the server is running.
+
+### Basic Examples
+
+Share the current directory:
+
+```bash
+vortex --start
+```
+
+Share a specific directory:
+
+```bash
+vortex --start --dir ~/Downloads
+```
+
+Use a custom port:
+
+```bash
+vortex --start --port 3000
+```
+
+Combine multiple options:
+
+```bash
+vortex --start --dir ~/Documents --port 9000
+```
+
+Share a network drive:
+
+```bash
+vortex --start --dir /Volumes/NetworkDrive
+```
+
+Windows: Share a specific drive:
+
+```bash
+vortex --start --dir "D:\My Documents"
+```
+
+## Usage
+
+### Basic Operation
+
+1. Start the server with `vortex --start`
+2. Note the URL displayed in the terminal
+3. Open the URL in a web browser on another device
+4. Upload files by clicking "Choose files" and then "Send"
+5. Download files by clicking the file name
+6. Stop the server with `vortex --stop`
+
+### Selecting Different Directories
+
+**Share your Downloads folder:**
+
+```bash
+vortex --start --dir ~/Downloads
+```
+
+**Share a specific project folder:**
+
+```bash
+vortex --start --dir ~/Projects/MyProject
+```
+
+**Share a shared folder on your network (macOS):**
+
+```bash
+vortex --start --dir /Volumes/SharedFolder
+```
+
+**Share a network drive (Windows):**
+
+```bash
+vortex --start --dir "\\192.168.1.50\SharedFolder"
+```
+
+### Using Custom Ports
+
+Default port is 8000. If this port is already in use, specify a different port:
+
+```bash
+vortex --start --port 3000
+```
+
+Then access at: `http://192.168.1.100:3000`
+
+Common alternative ports:
+- 3000 - Standard development port
+- 5000 - Flask development port
+- 8080 - Common HTTP alternative
+- 9000 - High numbered port
+
+### Understanding IP Addresses
+
+When you start Vortex, you see an IP address like `192.168.1.100`. This is your local network address. Other devices must be on the same WiFi network to access it.
+
+**Private IP ranges (local network only):**
+- 192.168.x.x (most common)
+- 10.x.x.x (enterprise networks)
+- 172.16.x.x to 172.31.x.x (less common)
+
+**Localhost (this computer only):**
+- 127.0.0.1 or `localhost`
+
+## Advanced Features
+
+### Network Address Mode Selection
+
+The `--mode` flag controls how Vortex detects the network address:
+
+```bash
+vortex --start --mode auto
+```
+
+**Available modes:**
+
+1. **auto (default)** - Automatically detects your LAN IP. Falls back to localhost if no network is available.
+
+2. **localhost** - Binds to 127.0.0.1. Only accessible from this computer. Useful for testing.
+
+3. **lan** - Requires a LAN IP. Fails if no local network is detected. Useful when you always want LAN access.
+
+**Examples:**
+
+Test locally before sharing:
+
+```bash
+vortex --start --mode localhost
+```
+
+Then visit: `http://127.0.0.1:8000`
+
+Require LAN access (fail if no network):
+
+```bash
+vortex --start --mode lan
+```
+
+Use automatic detection (default):
+
+```bash
+vortex --start --mode auto
+```
+
+### Token Authentication
+
+Token authentication restricts file access to users who provide a secret token.
+
+**Start with token authentication:**
+
+```bash
+vortex --start --secure
+```
+
+Output:
+
+```
+Vortex active
+Serving directory: /Users/you/Desktop
+Share this on your network: http://192.168.1.100:8000?token=a1b2c3d4e5f6g7h8
+
+🔐 Token authentication ENABLED
+   Access URL: http://192.168.1.100:8000?token=a1b2c3d4e5f6g7h8
+   Token: a1b2c3d4e5f6g7h8
+```
+
+**How tokens work:**
+
+- A 16-character random token is generated automatically
+- The token persists to `~/.vortex/token.txt` across server restarts
+- Clients must include the token in the URL: `?token=a1b2c3d4e5f6g7h8`
+- Requests without the correct token receive a 403 Unauthorized error
+- Rate limiting (200 requests/minute) is always enabled
+
+**Regenerate a new token:**
+
+```bash
+vortex --start --secure --new-token
+```
+
+This generates a new token. Previous tokens will no longer work.
+
+**Using tokens with clients:**
+
+In browser: `http://192.168.1.100:8000?token=a1b2c3d4e5f6g7h8`
+
+In HTTP header: `X-Token: a1b2c3d4e5f6g7h8`
+
+### HTTPS (Encrypted Connections)
+
+HTTPS encrypts all traffic between your browser and the server using a self-signed certificate.
+
+**Start with HTTPS:**
+
+```bash
+vortex --start --https
+```
+
+Output:
+
+```
+Vortex active
+Serving directory: /Users/you/Desktop
+Share this on your network: https://192.168.1.100:8000
+
+🔒 HTTPS ENABLED (self-signed certificate)
+   Browsers may show a security warning - this is expected.
+```
+
+**How HTTPS works:**
+
+- A self-signed certificate is generated automatically on first use
+- Certificate is stored in `~/.vortex/certificate.pem` and reused on subsequent runs
+- Traffic is encrypted even though the certificate is not from a trusted authority
+- Browsers will show a security warning because the certificate is self-signed (this is normal)
+- Requires OpenSSL to be installed
+
+**Accepting the browser security warning:**
+
+When you visit an HTTPS URL, your browser will show a security warning.
+
+Chrome/Edge:
+1. Click "Advanced"
+2. Click "Proceed to 192.168.x.x (unsafe)"
+
+Firefox:
+1. Click "Advanced"
+2. Click "Accept the Risk and Continue"
+
+Safari:
+1. Click "Show Details"
+2. Click "visit this website"
+
+After clicking through the warning, you can use Vortex normally. The connection is encrypted.
+
+**Installing OpenSSL (required for HTTPS on Windows):**
+
+macOS (pre-installed, but can update):
+
+```bash
+brew install openssl
+```
+
+Linux - Debian/Ubuntu (pre-installed, but can update):
+
+```bash
+sudo apt-get install openssl
+```
+
+Linux - Fedora/RHEL (pre-installed, but can update):
+
+```bash
+sudo yum install openssl
+```
+
+Windows (not pre-installed):
+
+1. Download from [slproweb.com/products/Win32OpenSSL.html](https://slproweb.com/products/Win32OpenSSL.html)
+2. Run the installer
+3. Choose "Install OpenSSL in C:\Program Files\OpenSSL-Win64" or your preferred location
+4. Restart your computer
+
+### Combining Security Features
+
+Use multiple security features together for maximum protection:
+
+```bash
+vortex --start --https --secure
+```
+
+This enables:
+- HTTPS encryption (encrypts all traffic)
+- Token authentication (restricts access)
+- Rate limiting (200 requests/minute, always enabled)
+
+Output:
+
+```
+Vortex active
+Serving directory: /Users/you/Desktop
+Share this on your network: https://192.168.1.100:8000?token=a1b2c3d4e5f6g7h8
+
+🔐 Token authentication ENABLED
+   Access URL: https://192.168.1.100:8000?token=a1b2c3d4e5f6g7h8
+   Token: a1b2c3d4e5f6g7h8
+
+🔒 HTTPS ENABLED (self-signed certificate)
+   Browsers may show a security warning - this is expected.
+```
+
+**Rate limiting (always enabled):**
+
+- Maximum: 200 requests per minute per IP address
+- Cannot be disabled
+- Purpose: Prevent brute force attacks and DoS attacks
+- Normal users will not hit this limit
+
+### File Download as ZIP
+
+Download an entire directory as a compressed ZIP file.
+
+In the web interface:
+1. Navigate to any directory
+2. Click the "Download All" button
+3. All files in that directory download as a ZIP file
+
+This is useful for downloading multiple files at once.
+
+### HTTP Range Requests
+
+HTTP Range requests allow you to resume downloads and seek in media files.
+
+Resume downloads:
+- Start a download, then pause it
+- Resume later from where you paused (if the server is still running)
+
+Seek in media:
+- Video players can seek to any point in the video
+- Audio players can skip to any point in the song
+- Works with all modern browsers and players
+
+## Command Reference
+
+### Starting the Server
+
+```bash
+vortex --start [OPTIONS]
+```
+
+Available options:
+
+```
+--dir PATH                    Directory to serve
+                             Default: current directory
+                             Example: --dir ~/Downloads
+
+--port NUMBER                Port to listen on
+                             Default: 8000
+                             Example: --port 3000
+
+--mode [auto|localhost|lan]  Address detection mode
+                             Default: auto
+                             Example: --mode localhost
+
+--https                      Enable HTTPS with self-signed certificate
+                             Default: disabled
+                             Example: --https
+
+--secure                     Enable token-based authentication
+                             Default: disabled
+                             Example: --secure
+
+--new-token                  Generate a new authentication token
+                             Used with: --secure
+                             Example: --secure --new-token
+```
+
+### Stopping the Server
+
+```bash
+vortex --stop
+```
+
+Stops the currently running Vortex server.
+
+### Displaying Help
+
+```bash
+vortex --help
+```
+
+Shows available commands and options.
+
+### Displaying Version
+
+```bash
+vortex --version
+```
+
+Shows the installed Vortex version.
+
+### Complete Command Examples
+
+Share the current directory on the default port:
+
+```bash
+vortex --start
+```
+
+Share a specific directory with a custom port:
+
+```bash
+vortex --start --dir ~/Documents --port 3000
+```
+
+Share with token authentication only:
+
+```bash
+vortex --start --secure
+```
+
+Share with HTTPS only:
+
+```bash
+vortex --start --https
+```
+
+Share with both HTTPS and token authentication:
+
+```bash
+vortex --start --https --secure
+```
+
+Regenerate and use a new token:
+
+```bash
+vortex --start --secure --new-token
+```
+
+Share with all security features and custom port:
+
+```bash
+vortex --start --https --secure --port 8443
+```
+
+Restrict to localhost only:
+
+```bash
+vortex --start --mode localhost
+```
+
+## Web Interface
+
+Once the server is running and you have accessed the URL in your browser, you will see the file management interface.
+
+### Browsing Files and Directories
+
+**Viewing contents:**
+- The interface displays all files and directories in the current directory
+- File size is shown next to each file name
+- Directories are indicated with a forward slash (/)
+
+**Navigation:**
+- Click on a directory name to open it
+- Click ".." to go up one level to the parent directory
+- The current path is shown at the top of the page
+
+**File information:**
+- File names are displayed exactly as they appear on disk
+- File sizes are shown in human-readable format (KB, MB, GB, etc.)
+
+### Downloading Files
+
+**Downloading a single file:**
+1. Click the file name
+2. The file downloads to your computer's default Downloads folder
+
+**Downloading multiple files:**
+1. Click the "Download All" button
+2. All files in the current directory are packaged as a ZIP file
+3. The ZIP file downloads to your Downloads folder
+
+**About ZIP downloads:**
+- Only includes files in the current directory
+- Does not include subdirectories
+- File size limit depends on available disk space
+
+### Uploading Files
+
+**Selecting files:**
+1. Click the "Choose files" button
+2. A file selection dialog opens
+3. Select one or more files
+4. Click "Open" or "Select" depending on your browser
+
+**Uploading:**
+1. After selecting files, click the "Send" button
+2. A progress bar shows the upload status
+3. Once complete, the files appear in the directory listing
+
+**Upload requirements:**
+- Files must fit on the server's available disk space
+- No file size limit enforced
+- Multiple files can be uploaded simultaneously
+- Upload speed depends on your network connection
+
+**After uploading:**
+- Uploaded files appear immediately in the file list
+- If the server is on another computer, files are stored on that computer
+- You can access the files by refreshing the page
+
+### User Interface Elements
+
+**File list:**
+- Table showing all files and directories
+- Click column headers to sort (on some systems)
+- Right-click for browser context menu options
+
+**Upload panel:**
+- "Choose files" button opens file selection dialog
+- File count is displayed after selection
+- "Send" button uploads selected files
+- Progress bar shows upload status
+
+**Download section:**
+- "Download All" button downloads entire directory as ZIP
+- Available when files exist in the current directory
+
+## Performance
+
+### Performance Specifications
+
+**Concurrent uploads:**
+- Maximum 4 parallel uploads per browser session
+- Additional uploads queue automatically
+
+**File size limits:**
+- No practical limit
+- Limited only by available disk space on the server
+- Files are streamed (not buffered in memory)
+
+**Network speed:**
+- Transfer speed limited by your WiFi connection
+- Vortex does not impose artificial speed limits
+- Speed depends on: WiFi quality, distance to router, network congestion
+
+**Mobile device performance:**
+- Optimized for iOS and Android
+- Tested on iPhone Safari and Chrome Mobile
+- Smooth performance with recent devices
+
+**Memory usage:**
+- Constant memory usage regardless of file size
+- Streaming implementation means large files do not load into memory
+- Typical memory usage: 20-50 MB
+
+**Concurrent connections:**
+- Default: 100 simultaneous connections
+- Handles multiple users uploading/downloading simultaneously
+
+### Performance Optimization
+
+**For faster uploads/downloads:**
+
+1. Move closer to the WiFi router
+2. Ensure router is in an open location (not in a cabinet or drawer)
+3. Reduce the number of devices connected to WiFi
+4. Upload/download during off-peak hours
+5. Use 5 GHz WiFi if your router supports it (faster but shorter range)
+
+**For better stability:**
+
+1. Use a wired Ethernet connection on the server if possible
+2. Update your router firmware
+3. Use a modern WiFi standard (WiFi 6 or later)
+4. Reduce other network traffic
+
+**For large files:**
+
+1. Split files into smaller parts before uploading
+2. Use a wired connection on the client device
+3. Connect the server via Ethernet if possible
+
+## Security
+
+### Security Model
+
+Vortex is designed for trusted local networks. Understand the security implications before use.
+
+### Default Security (No Flags)
+
+When run with `vortex --start` only:
+
+- No encryption: Traffic visible to anyone on the network
+- No authentication: Anyone with the URL can upload/download
+- No authorization: All files are accessible to anyone
+- Rate limiting: Always enabled (200 requests/minute per IP)
+
+Use this mode only on networks you fully trust.
+
+### Optional Security Features
+
+**Token authentication (`--secure`):**
+- Requires users to provide a secret token
+- Prevents unauthorized access from people on the same network
+- Token is 16 random characters
+- Does not encrypt traffic (use `--https` for encryption)
+
+**HTTPS encryption (`--https`):**
+- Encrypts all traffic between browser and server
+- Prevents eavesdropping on the network
+- Uses self-signed certificate (browsers may warn)
+- Does not authenticate users (use `--secure` for authentication)
+
+**Rate limiting (always enabled):**
+- Limits requests to 200 per minute per IP address
+- Protects against brute force attacks
+- Cannot be disabled
+
+### Security Use Cases
+
+**Home network with trusted family:**
+
+```bash
+vortex --start
+```
+
+No security features needed.
+
+**Office network with colleagues:**
+
+```bash
+vortex --start --secure
+```
+
+Token authentication prevents random access.
+
+**Public WiFi (coffee shop, airport):**
+
+```bash
+vortex --start --https --secure
+```
+
+Both encryption and authentication for maximum security.
+
+**Sharing sensitive documents:**
+
+```bash
+vortex --start --https --secure
+```
+
+Plus: Encrypt files before uploading, delete files immediately after sharing.
+
+### Security Limitations
+
+Important limitations to understand:
+
+- Self-signed certificates are not trusted by browsers
+- Tokens are transmitted in URLs (visible in browser history)
+- Files are not encrypted on disk
+- HTTPS only encrypts in-transit data
+- Rate limiting can be bypassed from multiple IP addresses
+
+### Firewall Considerations
+
+### Windows Firewall
+
+By default, Windows Firewall may block Vortex.
+
+When you start Vortex, Windows may show a firewall permission dialog. Click "Allow" to permit network access.
+
+If no dialog appears:
+
+1. Open Settings
+2. Go to Privacy & Security
+3. Click Firewall & network protection
+4. Click "Allow an app through firewall"
+5. Click "Change settings"
+6. Click "Allow another app"
+7. Browse to your Python installation
+8. Select python.exe
+9. Click Open
+10. Check "Private" and "Public" boxes
+11. Click OK
+
+### macOS Firewall
+
+By default, macOS allows applications.
+
+If you see a firewall prompt, click "Allow".
+
+To verify firewall settings:
+
+1. System Preferences
+2. Security & Privacy
+3. Firewall Options
+
+### Linux Firewall
+
+If using a firewall like UFW:
+
+```bash
+sudo ufw allow 8000/tcp
+```
+
+Replace 8000 with your custom port if using one.
+
+## Troubleshooting
+
+### Server Issues
+
+#### Server fails to start
+
+**Problem:** `Address already in use`
+
+This means port 8000 is already in use by another application.
+
+Solution:
+
+```bash
+vortex --start --port 9000
+```
+
+Replace 9000 with any unused port.
+
+**Problem:** `Permission denied` when accessing directory
+
+You do not have read permissions for the specified directory.
+
+Solution 1: Use a directory you own:
+
+```bash
+vortex --start --dir ~/Downloads
+```
+
+Solution 2: Grant read permissions:
+
+macOS/Linux:
+
+```bash
+chmod -R 755 /path/to/directory
+vortex --start --dir /path/to/directory
+```
+
+Windows: Right-click directory → Properties → Security → Edit permissions
+
+**Problem:** `No such file or directory`
+
+The specified directory does not exist.
+
+Solution: Check the path spelling and ensure the directory exists:
+
+```bash
+vortex --start --dir ~/MyExistingFolder
+```
+
+#### Server runs but is not accessible
+
+**Problem:** Browser shows "ERR_TIMED_OUT" or "took too long to respond"
+
+Your firewall is blocking port 8000.
+
+Solution - Windows:
+
+1. Open Windows Defender Firewall
+2. Click Advanced Settings
+3. Click Inbound Rules
+4. Click New Rule
+5. Select Port
+6. Click Next
+7. Select TCP
+8. Enter Port: 8000
+9. Click Next
+10. Select "Allow the connection"
+11. Click Next
+12. Check all three: Domain, Private, Public
+13. Click Next
+14. Enter Name: "Vortex"
+15. Click Finish
+
+Restart Vortex:
+
+```bash
+vortex --stop
+vortex --start
+```
+
+Solution - macOS:
+
+macOS typically allows applications. If blocked:
+
+1. System Preferences
+2. Security & Privacy
+3. Firewall
+4. Firewall Options
+5. Add Python to allowed apps
+
+Solution - Linux:
+
+If using UFW firewall:
+
+```bash
+sudo ufw allow 8000/tcp
+```
+
+**Problem:** "Connection refused" on another device
+
+The server is running but the address is wrong.
+
+Solution: Verify the IP address shown when server starts:
+
+```bash
+vortex --start
+```
+
+Check the output for the address shown (example: `http://192.168.1.100:8000`).
+
+Ensure both devices are on the same WiFi network.
+
+### HTTPS Issues
+
+#### HTTPS does not work
+
+**Problem:** "Certificate error" or "Connection refused"
+
+OpenSSL is not installed.
+
+Solution - Windows:
+
+Download and install from: [slproweb.com/products/Win32OpenSSL.html](https://slproweb.com/products/Win32OpenSSL.html)
+
+Restart your computer after installation.
+
+Solution - macOS:
+
+```bash
+brew install openssl
+```
+
+Solution - Linux:
+
+Debian/Ubuntu:
+
+```bash
+sudo apt-get install openssl
+```
+
+Fedora/RHEL:
+
+```bash
+sudo yum install openssl
+```
+
+After installation, restart Vortex:
+
+```bash
+vortex --stop
+vortex --start --https
+```
+
+**Problem:** Browser always warns about certificate
+
+This is normal with self-signed certificates. The warning does not indicate a problem.
+
+Solution: Click through the warning as described in the Web Interface section.
+
+### Token Authentication Issues
+
+#### Token not working
+
+**Problem:** "403 Unauthorized" when accessing with token
+
+The token is incorrect or misformatted.
+
+Solution 1: Check the token spelling in the URL:
+
+```
+http://192.168.1.100:8000?token=EXACTTOKENFROMSERVER
+```
+
+Solution 2: Regenerate a new token:
+
+```bash
+vortex --start --secure --new-token
+```
+
+Use the new token shown in the output.
+
+**Problem:** Forgot the token
+
+The token is stored in `~/.vortex/token.txt`.
+
+Retrieve it:
+
+macOS/Linux:
+
+```bash
+cat ~/.vortex/token.txt
+```
+
+Windows (PowerShell):
+
+```powershell
+Get-Content $env:USERPROFILE\.vortex\token.txt
+```
+
+### Network Issues
+
+#### Cannot see address from terminal output
+
+The server is running but the address is not displaying correctly.
+
+Solution: Check the terminal output carefully. Look for a line starting with `Share this on your network:`.
+
+If not visible, the output may have scrolled. Restart the server:
+
+```bash
+vortex --stop
+vortex --start
+```
+
+#### Server address shows localhost instead of IP
+
+**Problem:** Output shows `http://127.0.0.1:8000` instead of `http://192.168.x.x:8000`
+
+This means the server detected no network connection.
+
+Solution 1: Connect to WiFi and restart:
+
+```bash
+vortex --stop
+vortex --start
+```
+
+Solution 2: Force LAN mode:
+
+```bash
+vortex --start --mode lan
+```
+
+If this fails, no network is available.
+
+#### Different address on different networks
+
+The IP address changes when you move to a different WiFi network.
+
+This is normal. Restart the server on the new network and use the new address displayed.
+
+### Browser Issues
+
+#### Browser shows security warning for HTTPS
+
+This is expected with self-signed certificates.
+
+Solution: Click through the warning:
+
+Chrome/Edge: Click Advanced → Proceed to 192.168.x.x (unsafe)
+
+Firefox: Click Advanced → Accept the Risk and Continue
+
+Safari: Click Show Details → visit this website
+
+#### Download not starting
+
+**Problem:** File download does not begin after clicking
+
+Possible causes: Large file, slow network, browser issue.
+
+Solution 1: Wait longer (large files take time)
+
+Solution 2: Try a different browser
+
+Solution 3: Download as ZIP: Click "Download All" instead
+
+#### File uploads fail or are slow
+
+**Problem:** Upload gets stuck or times out
+
+Possible causes: Large file, WiFi issues, network congestion.
+
+Solution 1: Move closer to router
+
+Solution 2: Reduce file size
+
+Solution 3: Try uploading a smaller file first to test connection
+
+### Installation Issues
+
+#### Python not found
+
+**Error:** `python: command not found`
+
+Python is not installed or not in PATH.
+
+Solution 1 - Windows:
+
+Download from [python.org](https://www.python.org/downloads/) and install. Check "Add Python to PATH" during installation.
+
+Solution 2 - macOS:
+
+```bash
+brew install python3
+```
+
+Solution 3 - Linux:
+
+Debian/Ubuntu:
+
+```bash
+sudo apt-get install python3
+```
+
+Fedora/RHEL:
+
+```bash
+sudo yum install python3
+```
+
+#### pip not found
+
+**Error:** `pip: command not found`
+
+pip is not installed or not in PATH.
+
+Solution 1: Upgrade pip:
+
+```bash
+python -m ensurepip --upgrade
+```
+
+Solution 2: Install pip:
+
+Windows: Run Python installer with pip option selected
+
+macOS:
+
+```bash
+brew install python3
+```
+
+Linux:
+
+Debian/Ubuntu:
+
+```bash
+sudo apt-get install python3-pip
+```
+
+Fedora/RHEL:
+
+```bash
+sudo yum install python3-pip
+```
+
+#### Permission denied during installation
+
+**Error:** `Permission denied` when running pip install
+
+Solution 1: Use --user flag:
+
+```bash
+pip install --user -e .
+```
+
+Solution 2: Use sudo (not recommended but works):
+
+```bash
+sudo pip install -e .
+```
+
+#### Git not found
+
+**Error:** `git: command not found`
+
+Git is not installed.
+
+Solution: Install from [git-scm.com](https://git-scm.com/download) or:
+
+macOS:
+
+```bash
+brew install git
+```
+
+Linux:
+
+Debian/Ubuntu:
+
+```bash
+sudo apt-get install git
+```
+
+Fedora/RHEL:
+
+```bash
+sudo yum install git
+```
+
+### Uninstallation Issues
+
+#### Cannot uninstall
+
+**Problem:** Running `pip uninstall vortex` fails
+
+Solution 1: Ensure the server is stopped:
+
+```bash
+vortex --stop
+```
+
+Solution 2: Use -y flag to skip confirmation:
+
+```bash
+pip uninstall -y vortex
+```
+
+Solution 3: Force reinstall then uninstall:
+
+```bash
+pip install --force-reinstall vortex
+pip uninstall vortex
+```
+
+#### Configuration files not removed
+
+**Problem:** Token and certificate files remain after uninstalling
+
+Solution: Manually remove them:
+
+macOS/Linux:
+
+```bash
+rm -rf ~/.vortex
+```
+
+Windows:
+
+```bash
+rmdir /s %USERPROFILE%\.vortex
+```
+
+## Project Structure
+
+### Directory Layout
+
+```
+vortex/
+├── src/
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── server.py
+│   ├── upload.py
+│   ├── ui.py
+│   ├── styles.py
+│   ├── scripts.py
+│   ├── utils.py
+│   ├── constants.py
+│   └── security.py
+├── vortex.py
+├── pyproject.toml
+├── LICENSE
+└── README.md
+```
+
+### File Descriptions
+
+**src/__init__.py** - Package initialization and version information
+
+**src/cli.py** - Command-line interface for parsing arguments and managing server lifecycle
+
+**src/server.py** - HTTP server implementation and request handler
+
+**src/upload.py** - Multipart form data parsing for file uploads
+
+**src/ui.py** - HTML template rendering for the web interface
+
+**src/styles.py** - CSS styling embedded in HTML
+
+**src/scripts.py** - JavaScript for upload progress and file selection
+
+**src/utils.py** - Utility functions for path validation and file operations
+
+**src/constants.py** - Configuration constants and MIME type mappings
+
+**src/security.py** - Rate limiting, token authentication, HTTPS support
+
+**vortex.py** - Entry point script
+
+**pyproject.toml** - Package configuration and dependencies
+
+**LICENSE** - MIT license text
+
+**README.md** - This documentation file
+
+### Configuration Storage
+
+**~/.vortex/token.txt** - Authentication token for `--secure` mode
+
+**~/.vortex/certificate.pem** - Self-signed certificate for `--https` mode
+
+## Contributing
+
+### How to Contribute
+
+1. Fork the repository at [github.com/colvyn01/vortex](https://github.com/colvyn01/vortex)
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make your changes
+4. Test thoroughly
+5. Commit with clear messages: `git commit -m "Add feature description"`
+6. Push to your fork: `git push origin feature/your-feature`
+7. Submit a pull request
+
+### Code Standards
+
+- Follow PEP 8 for Python code
+- Write clear commit messages
+- Test all changes before submitting
+- Update documentation for new features
+
+### Testing
+
+Before submitting:
+
+1. Test on multiple platforms (Windows, macOS, Linux)
+2. Test with multiple browsers
+3. Test all security modes
+4. Test with large files
+5. Test on slow networks
+
+## License
+
+Vortex is released under the MIT License. See the LICENSE file for full details.
+
+The MIT License allows:
+- Commercial use
+- Modification
+- Distribution
+- Private use
+
+With the only requirement:
+- License and copyright notice included with the software
+
+## About
+
+Vortex was created to solve a simple problem: quickly sharing files between devices on a local network without cloud services, complex configuration, or external dependencies.
+
+The project prioritizes simplicity, reliability, and performance while maintaining zero external dependencies by using only Python's standard library.
+
+**Project Information:**
+- Version: 1.0.0
+- Python: 3.8 or higher
+- Status: Production ready
+- License: MIT
+- Repository: [github.com/colvyn01/vortex](https://github.com/colvyn01/vortex)
+
+**Maintainers:**
+- Colvyn Harris
+- Mathan Mohan
+
+**Last Updated:** December 2025

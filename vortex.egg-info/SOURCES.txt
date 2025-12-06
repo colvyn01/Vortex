@@ -3,8 +3,14 @@ README.md
 pyproject.toml
 src/__init__.py
 src/cli.py
+src/constants.py
+src/scripts.py
+src/security.py
 src/server.py
+src/styles.py
 src/ui.py
+src/upload.py
+src/utils.py
 vortex.egg-info/PKG-INFO
 vortex.egg-info/SOURCES.txt
 vortex.egg-info/dependency_links.txt

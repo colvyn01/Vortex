@@ -37,8 +37,8 @@ CSS_STYLESHEET = """
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;
-  --font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono",
-    "Droid Sans Mono", monospace;
+  --font-mono: "Menlo", "Consolas", "Monaco", "Liberation Mono",
+    "Courier New", monospace;
 }
 
 
@@ -117,7 +117,7 @@ body {
   }
 
   .app-root {
-    padding: 0;
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
   }
 
   .device-shell {
@@ -142,6 +142,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 800;
+  font-family: var(--font-sans);
 }
 
 .device-header p {
@@ -393,6 +394,12 @@ body {
   min-height: 0;
   max-height: 100%;
   -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.file-list::-webkit-scrollbar {
+  display: none;
 }
 
 table {
