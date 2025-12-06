@@ -74,6 +74,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
+  overflow-x: hidden;
 }
 
 .app-root {
@@ -164,6 +165,7 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .device-subheader span {
@@ -255,12 +257,21 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-width: 0;
 }
 
-.panel-title span {
   font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.panel-title span:first-child {
+  flex-shrink: 0;
+  margin-right: 0.5rem;
 }
 
 .path-label {
@@ -277,27 +288,22 @@ body {
 
 .upload-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-@media (min-width: 640px) {
-  .upload-row {
-    flex-direction: row;
-    align-items: center;
-  }
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.25rem;
 }
 
 /* Custom File Input */
 
 .file-input {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .file-input input[type="file"] {
@@ -313,12 +319,12 @@ body {
   background: var(--accent-color);
   color: #ffffff;
   border: var(--border-width) solid var(--border-color);
-  padding: 0.4rem 0.7rem;
+  padding: 0.4rem;
   text-transform: uppercase;
   font-weight: 600;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 0.2px;
-  min-width: 7.5rem;
+  min-width: 3.5rem;
   text-align: center;
   min-height: 44px;
   display: flex;
@@ -332,16 +338,18 @@ body {
 
 .file-name {
   flex: 1;
-  padding: 0.3rem 0.5rem;
+  padding: 0 0.3rem;
   border: 1px dashed #bbbbbb;
   color: var(--text-dim);
   white-space: nowrap;
+  font-size: 0.65rem;
   overflow: hidden;
   text-overflow: ellipsis;
   background: #fafafa;
   min-height: 44px;
-  display: flex;
-  align-items: center;
+  display: block;
+  line-height: 42px;
+  min-width: 0;
 }
 
 
@@ -353,9 +361,9 @@ body {
   background: #ffffff;
   border: var(--border-width) solid var(--border-color);
   color: var(--text-main);
-  padding: 0.4rem 0.7rem;
+  padding: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   font-weight: 600;
   cursor: pointer;
@@ -363,11 +371,12 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 5.5rem;
+  min-width: 3.5rem;
   min-height: 44px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -417,14 +426,20 @@ body {
 
   .file-input {
     flex-direction: column;
+    flex: none;
+    width: 100%;
   }
 
   .file-button,
-  .file-name,
-  .btn {
+  .file-name {
     width: 100%;
     padding: 0.45rem 0.6rem;
     letter-spacing: 0.1px;
+  }
+
+  .upload-row .btn {
+    width: 100%;
+    flex-shrink: 1;
   }
 }
 
@@ -758,7 +773,7 @@ a:active {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-main);
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
 }
 
 #qr-code {
@@ -800,4 +815,3 @@ a:active {
   white-space: nowrap;
 }
 """
-

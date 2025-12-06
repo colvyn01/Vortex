@@ -241,8 +241,8 @@ def render_directory_listing(
           <div class="upload-row">
             <label class="file-input">
               <input type="file" name="file" multiple required>
-              <span class="file-button">Choose files</span>
-              <span class="file-name">No files selected</span>
+              <span class="file-button">Files</span>
+              <span class="file-name">None</span>
             </label>
             <button class="btn" type="submit">Send</button>
           </div>
