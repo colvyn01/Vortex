@@ -35,10 +35,9 @@ CSS_STYLESHEET = """
   --radius: 4px;
 
   /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  --font-mono: "Menlo", "Consolas", "Monaco", "Liberation Mono",
-    "Courier New", monospace;
+  /* Unified font stack for consistent Teenage Engineering-inspired industrial aesthetic.
+     IBM Plex Mono provides a clean, technical feel; falls back to system monospace fonts. */
+  --font-ui: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", "Monaco", monospace;
 }
 
 
@@ -66,7 +65,7 @@ body {
     linear-gradient(90deg, #cfcfcf 1px, transparent 1px);
   background-size: 20px 20px;
   color: var(--text-main);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   min-height: 100vh;
   min-height: -webkit-fill-available;
   display: flex;
@@ -143,14 +142,14 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 800;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
 }
 
 .device-header p {
   font-size: 0.8rem;
   color: var(--text-dim);
   line-height: 1.4;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
 }
 
 
@@ -159,7 +158,7 @@ body {
 .device-subheader {
   padding: 0.4rem 1rem;
   border-bottom: 1px solid var(--border-color);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   color: var(--text-dim);
   display: flex;
@@ -260,7 +259,8 @@ body {
   min-width: 0;
 }
 
-  font-family: var(--font-mono);
+.panel-title span {
+  font-family: var(--font-ui);
   font-size: 0.65rem;
   color: var(--text-dim);
   white-space: nowrap;
@@ -275,7 +275,7 @@ body {
 }
 
 .path-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   color: var(--text-dim);
   white-space: nowrap;
@@ -300,7 +300,7 @@ body {
   display: flex;
   align-items: stretch;
   gap: 0.25rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   flex: 1;
   min-width: 0;
@@ -333,7 +333,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
 }
 
 .file-name {
@@ -362,7 +362,7 @@ body {
   border: var(--border-width) solid var(--border-color);
   color: var(--text-main);
   padding: 0.4rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.65rem;
   text-transform: uppercase;
   font-weight: 600;
@@ -466,7 +466,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.75rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   table-layout: fixed;
 }
 
@@ -500,7 +500,7 @@ td a {
 a {
   color: var(--accent-color);
   text-decoration: none;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -549,7 +549,7 @@ a:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.65rem;
 }
 
@@ -596,7 +596,7 @@ a:active {
 }
 
 .progress-text {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   color: var(--text-secondary);
 }
@@ -606,7 +606,7 @@ a:active {
 
 .upload-error {
   color: var(--error-color);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   display: none;
   padding: 0.4rem 0.6rem;
@@ -700,7 +700,7 @@ a:active {
 }
 
 .chat-content {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   word-wrap: break-word;
   line-height: 1.4;
@@ -709,7 +709,7 @@ a:active {
 .chat-content a {
   color: var(--accent-color);
   text-decoration: underline;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
 }
 
 .chat-timestamp {
@@ -729,7 +729,7 @@ a:active {
   flex: 1;
   padding: 0.4rem 0.6rem;
   border: var(--border-width) solid var(--border-color);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   border-radius: var(--radius);
   background: #ffffff;
@@ -771,9 +771,14 @@ a:active {
 
 .qr-title {
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   color: var(--text-main);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
+  width: 100%;
+  max-width: max-content;
+  text-align: center;
 }
 
 #qr-code {
@@ -781,6 +786,7 @@ a:active {
   padding: 0.4rem;
   background: #ffffff;
   border-radius: var(--radius);
+  width: max-content;
 }
 
 #qr-code img {
@@ -790,7 +796,7 @@ a:active {
 }
 
 .qr-url {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.6rem;
   color: var(--text-dim);
   word-break: break-all;
@@ -809,7 +815,7 @@ a:active {
 /* Directory Size Info */
 
 #dir-size-info {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   color: var(--text-dim);
   white-space: nowrap;
