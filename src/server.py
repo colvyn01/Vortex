@@ -14,16 +14,20 @@ This module provides the core HTTP server functionality including:
 """
 
 import io
+import json
 import os
 import socket
 import ssl
+import time
+import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import formatdate
+from hashlib import md5
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple, TYPE_CHECKING
-from urllib.parse import parse_qs, urlparse
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .constants import (
     CHUNK_SIZE,
@@ -41,6 +45,181 @@ from .utils import generate_etag, get_mime_type, is_path_safe, parse_range_heade
 
 if TYPE_CHECKING:
     from .security import SecurityManager
+
+
+# Chat Session Storage
+# In-memory storage for cross-device chat messages
+
+_chat_sessions: Dict[str, List[Dict[str, Any]]] = {}
+MAX_MESSAGES_PER_SESSION = 100
+MESSAGE_RETENTION_SECONDS = 3600  # 1 hour
+
+# Directory Size Cache
+# Caches directory size calculations to avoid expensive recomputation
+
+_size_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+SIZE_CACHE_DURATION = 30  # seconds
+
+
+# Chat Helper Functions
+
+
+def _get_session_id(directory_path: str) -> str:
+    """
+    Generate a stable session ID from directory path.
+
+    Args:
+        directory_path: Absolute path to the directory being served.
+
+    Returns:
+        MD5 hash of the directory path as session identifier.
+    """
+    return md5(directory_path.encode()).hexdigest()[:16]
+
+
+def _cleanup_old_messages(session_id: str) -> None:
+    """
+    Remove old messages from a chat session.
+
+    Removes messages older than MESSAGE_RETENTION_SECONDS and
+    trims to MAX_MESSAGES_PER_SESSION.
+
+    Args:
+        session_id: Session identifier to clean up.
+    """
+    if session_id not in _chat_sessions:
+        return
+
+    now = time.time()
+    messages = _chat_sessions[session_id]
+
+    # Remove expired messages
+    messages[:] = [
+        msg for msg in messages
+        if now - msg["timestamp"] < MESSAGE_RETENTION_SECONDS
+    ]
+
+    # Trim to maximum count
+    if len(messages) > MAX_MESSAGES_PER_SESSION:
+        messages[:] = messages[-MAX_MESSAGES_PER_SESSION:]
+
+
+def _add_message(session_id: str, sender: str, content: str) -> Dict[str, Any]:
+    """
+    Add a message to a chat session.
+
+    Args:
+        session_id: Session identifier.
+        sender: Name/ID of the message sender.
+        content: Message text content.
+
+    Returns:
+        The created message dictionary.
+    """
+    if session_id not in _chat_sessions:
+        _chat_sessions[session_id] = []
+
+    message = {
+        "id": str(uuid.uuid4()),
+        "sender": sender,
+        "content": content,
+        "timestamp": time.time(),
+        "type": "text"
+    }
+
+    _chat_sessions[session_id].append(message)
+    _cleanup_old_messages(session_id)
+
+    return message
+
+
+def _get_messages(
+    session_id: str,
+    since_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get messages from a chat session.
+
+    Args:
+        session_id: Session identifier.
+        since_id: Optional message ID to get messages after.
+
+    Returns:
+        List of message dictionaries.
+    """
+    if session_id not in _chat_sessions:
+        return []
+
+    _cleanup_old_messages(session_id)
+    messages = _chat_sessions[session_id]
+
+    if since_id:
+        # Find the index of since_id and return messages after it
+        for i, msg in enumerate(messages):
+            if msg["id"] == since_id:
+                return messages[i + 1:]
+        # If since_id not found, return all recent messages
+        return messages
+
+    return messages
+
+
+# Directory Size Helper
+
+
+def _calculate_directory_size(directory_path: str) -> Dict[str, Any]:
+    """
+    Calculate total size of a directory.
+
+    Walks the directory tree and sums file sizes. Caches result
+    for SIZE_CACHE_DURATION to avoid expensive recalculation.
+
+    Args:
+        directory_path: Path to directory to calculate.
+
+    Returns:
+        Dictionary with size information.
+    """
+    # Check cache first
+    now = time.time()
+    if directory_path in _size_cache:
+        cached_time, cached_data = _size_cache[directory_path]
+        if now - cached_time < SIZE_CACHE_DURATION:
+            return cached_data
+
+    # Import format_size from ui module
+    from .ui import format_size
+
+    total_bytes = 0
+    file_count = 0
+    folder_count = 0
+
+    try:
+        dir_path = Path(directory_path)
+        for entry in dir_path.rglob("*"):
+            try:
+                if entry.is_file():
+                    total_bytes += entry.stat().st_size
+                    file_count += 1
+                elif entry.is_dir():
+                    folder_count += 1
+            except (OSError, PermissionError):
+                # Skip inaccessible files
+                continue
+    except (OSError, PermissionError):
+        pass
+
+    result = {
+        "total_bytes": total_bytes,
+        "total_formatted": format_size(total_bytes),
+        "file_count": file_count,
+        "folder_count": folder_count
+    }
+
+    # Cache the result
+    _size_cache[directory_path] = (now, result)
+
+    return result
 
 
 # Thread Pool Server
@@ -257,6 +436,28 @@ class VortexHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def _send_json(self, data: Dict[str, Any], status: int = 200) -> None:
+        """Send a JSON response with proper headers."""
+        json_str = json.dumps(data, ensure_ascii=False)
+        encoded = json_str.encode(ENCODING)
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self._send_security_headers()
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def _parse_json_body(self) -> Optional[Dict[str, Any]]:
+        """Parse JSON from request body."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length == 0:
+                return None
+            body = self.rfile.read(length).decode(ENCODING)
+            return json.loads(body)
+        except (ValueError, json.JSONDecodeError):
+            return None
+
     def _send_error_safe(self, code: int, message: str) -> None:
         """Send error response, catching any connection errors."""
         try:
@@ -360,6 +561,64 @@ class VortexHandler(SimpleHTTPRequestHandler):
         except OSError:
             return False
 
+    # API Endpoints
+
+    def _handle_api_messages_get(self, query_params: Dict[str, List[str]]) -> None:
+        """Handle GET /api/messages - retrieve chat messages."""
+        session_id = query_params.get("session", [""])[0]
+        since_id = query_params.get("since", [""])[0] or None
+
+        if not session_id:
+            self._send_json({"error": "Missing session parameter"}, 400)
+            return
+
+        messages = _get_messages(session_id, since_id)
+        self._send_json({
+            "messages": messages,
+            "session_id": session_id
+        })
+
+    def _handle_api_messages_post(self) -> None:
+        """Handle POST /api/messages - send a chat message."""
+        data = self._parse_json_body()
+
+        if not data:
+            self._send_json({"error": "Invalid JSON"}, 400)
+            return
+
+        session_id = data.get("session_id")
+        sender = data.get("sender")
+        content = data.get("content")
+
+        if not session_id or not sender or not content:
+            self._send_json({"error": "Missing required fields"}, 400)
+            return
+
+        # Validate content length
+        if len(content) > 1000:
+            self._send_json({"error": "Message too long (max 1000 chars)"}, 400)
+            return
+
+        message = _add_message(session_id, sender, content)
+        self._send_json({
+            "message": message,
+            "status": "ok"
+        })
+
+    def _handle_api_directory_size(self, query_params: Dict[str, List[str]]) -> None:
+        """Handle GET /api/directory-size - get directory size info."""
+        session_id = query_params.get("session", [""])[0]
+
+        if not session_id:
+            self._send_json({"error": "Missing session parameter"}, 400)
+            return
+
+        size_info = _calculate_directory_size(self.base_directory)
+        self._send_json({
+            "size": size_info,
+            "cached_at": time.time()
+        })
+
     # HTTP Method Handlers
 
     def do_HEAD(self) -> None:
@@ -384,6 +643,16 @@ class VortexHandler(SimpleHTTPRequestHandler):
         # Parse URL for query parameters
         parsed = urlparse(self.path)
         query_params = parse_qs(parsed.query)
+        clean_path = unquote(parsed.path)
+
+        # API Endpoints
+        if clean_path == "/api/messages":
+            self._handle_api_messages_get(query_params)
+            return
+        elif clean_path == "/api/directory-size":
+            self._handle_api_directory_size(query_params)
+            return
+
         path = self.translate_path(parsed.path)
 
         # Security: Validate path is within base directory
@@ -400,8 +669,9 @@ class VortexHandler(SimpleHTTPRequestHandler):
 
             # Regular directory listing
             try:
+                session_id = _get_session_id(self.base_directory)
                 html_page = render_directory_listing(
-                    self.base_directory, path, parsed.path
+                    self.base_directory, path, parsed.path, session_id
                 )
                 self._send_html(html_page)
             except (OSError, PermissionError) as e:
@@ -483,6 +753,15 @@ class VortexHandler(SimpleHTTPRequestHandler):
         """
         # Security validation (rate limiting and token auth)
         if not self._validate_security():
+            return
+
+        # Parse URL path
+        parsed = urlparse(self.path)
+        clean_path = unquote(parsed.path)
+
+        # API Endpoints
+        if clean_path == "/api/messages":
+            self._handle_api_messages_post()
             return
 
         content_type = self.headers.get("Content-Type", "")

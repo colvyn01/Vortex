@@ -74,6 +74,7 @@ def render_layout(title: str, body_html: str) -> str:
 <meta name="format-detection" content="telephone=no">
 <meta name="theme-color" content="#e8e4e0">
 <title>{escaped_title}</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>{CSS_STYLESHEET}</style>
 </head>
 <body>
@@ -156,6 +157,7 @@ def render_directory_listing(
     base_directory: str,
     fs_path: str,
     request_path: str,
+    session_id: str,
 ) -> str:
     """
     Build the complete HTML page for a directory listing.
@@ -167,6 +169,7 @@ def render_directory_listing(
         base_directory: Root directory being served.
         fs_path: Filesystem path to the current directory.
         request_path: URL path from the HTTP request.
+        session_id: Chat session identifier.
 
     Returns:
         Complete HTML page for the directory listing.
@@ -207,13 +210,15 @@ def render_directory_listing(
 
     # Subheader shows current path and base directory
     subheader = f"""
+      <div id="session-data" data-session-id="{html.escape(session_id)}" data-base-dir="{html.escape(str(base_directory))}" style="display: none;"></div>
       <div class="device-subheader">
         <span>Serving: {html.escape(str(base_directory))}</span>
         <span>{display_path}</span>
+        <span id="dir-size-info">Calculating size...</span>
       </div>
     """
 
-    # Main content with upload panel and file list
+    # Main content with upload panel, file list, and chat
     main_content = f"""
     <main class="device-main">
       <section class="panel panel-files">
@@ -248,6 +253,22 @@ def render_directory_listing(
             <span class="progress-text">Uploading...</span>
           </div>
           <div class="upload-error"></div>
+        </form>
+        <div class="qr-code-container" id="qr-container">
+          <div class="qr-title">Scan to Connect</div>
+          <div id="qr-code"></div>
+          <div class="qr-url" id="qr-url-text"></div>
+        </div>
+      </section>
+      <section class="panel panel-chat">
+        <div class="panel-title">
+          <span>Chat</span>
+          <span id="chat-status">●</span>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <form class="chat-form" id="chat-form">
+          <input type="text" id="chat-input" placeholder="Type message..." maxlength="1000" autocomplete="off">
+          <button type="submit" class="btn btn-chat">Send</button>
         </form>
       </section>
     </main>
