@@ -18,6 +18,16 @@ from urllib.parse import unquote
 
 from .scripts import JS_UPLOAD_HANDLER
 from .styles import CSS_STYLESHEET
+from .audio_player import get_audio_player_html, get_audio_player_css, get_audio_player_js
+
+# Pre-generate combined resources (once at module load for performance)
+_AUDIO_PLAYER_CSS = get_audio_player_css()
+_COMPLETE_STYLESHEET = CSS_STYLESHEET + "\n\n" + _AUDIO_PLAYER_CSS
+
+_AUDIO_PLAYER_JS = get_audio_player_js()
+_COMPLETE_SCRIPTS = JS_UPLOAD_HANDLER + "\n\n" + _AUDIO_PLAYER_JS
+
+_AUDIO_PLAYER_HTML = get_audio_player_html()
 
 
 # Size Formatting
@@ -75,7 +85,7 @@ def render_layout(title: str, body_html: str) -> str:
 <meta name="theme-color" content="#e8e4e0">
 <title>{escaped_title}</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<style>{CSS_STYLESHEET}</style>
+<style>{_COMPLETE_STYLESHEET}</style>
 </head>
 <body>
   <div class="app-root">
@@ -91,7 +101,7 @@ def render_layout(title: str, body_html: str) -> str:
       </footer>
     </div>
   </div>
-<script>{JS_UPLOAD_HANDLER}</script>
+<script>{_COMPLETE_SCRIPTS}</script>
 </body>
 </html>
 """
@@ -290,4 +300,7 @@ def render_directory_listing(
     </main>
     """
 
-    return render_layout("Vortex", subheader + main_content)
+    # Inject audio player modal after device-shell
+    body_with_audio = subheader + main_content + "\n    </div>\n    " + _AUDIO_PLAYER_HTML + "\n    <div class=\"dummy-wrapper\">"
+    
+    return render_layout("Vortex", body_with_audio)
