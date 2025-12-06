@@ -157,7 +157,23 @@ def parse_multipart_streaming(
     if not filename:
         return UploadResult(success=False, error_message="Empty filename")
 
+    # Resolve filename conflicts by appending counter if file exists
     dest_path = os.path.join(base_directory, filename)
+    
+    if os.path.exists(dest_path):
+        # Separate filename and extension
+        name_without_ext, ext = os.path.splitext(filename)
+        counter = 1
+        
+        # Incrementally append counter until we find a unique filename
+        while os.path.exists(dest_path):
+            new_filename = f"{name_without_ext} ({counter}){ext}"
+            dest_path = os.path.join(base_directory, new_filename)
+            counter += 1
+            
+            # Safety check to prevent infinite loops
+            if counter > 9999:
+                return UploadResult(success=False, error_message="Too many duplicate files")
 
     # Phase 3: Stream file data to temporary file
     # Write to temp file first, then move to destination atomically.
@@ -227,10 +243,8 @@ def parse_multipart_streaming(
                         temp_file.write(buffer)
 
         # Phase 4: Move temp file to final destination
-        # Remove existing file if present, then atomic rename.
+        # Atomic rename to final destination.
 
-        if os.path.exists(dest_path):
-            os.remove(dest_path)
         os.rename(temp_path, dest_path)
         temp_path = None  # Successfully moved
 
