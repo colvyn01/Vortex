@@ -242,8 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Chat State
   var lastMessageId = null;
-  var pollInterval = null;
-  var POLL_INTERVAL_MS = 1000;
+  var eventSource = null;
   var deviceIdentity = generateDeviceIdentity();
   var SENDER_NAME = deviceIdentity.device_name;
   var DEVICE_ID = deviceIdentity.device_id;
@@ -571,14 +570,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /**
-   * Initialize chat polling and message sending.
+   * Initialize chat with Server-Sent Events for real-time updates.
    */
   function initializeChat() {
     if (!chatMessages || !chatForm || !chatInput) return;
 
-    // Start polling for new messages
-    fetchNewMessages();
-    pollInterval = setInterval(fetchNewMessages, POLL_INTERVAL_MS);
+    // Start SSE connection for real-time messages
+    connectEventSource();
 
     // Check if this client is the host
     checkHostStatus();
@@ -625,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(data) {
         chatInput.value = '';
         if (submitBtn) submitBtn.disabled = false;
-        // Message will appear via polling
+        // Message will appear via SSE
       })
       .catch(function(error) {
         console.error('Failed to send message:', error);
@@ -635,53 +633,63 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
-      if (pollInterval) clearInterval(pollInterval);
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
     });
   }
 
   /**
-   * Fetch new chat messages from server.
+   * Connect to SSE endpoint for real-time message updates.
    */
-  function fetchNewMessages() {
-    var url = '/api/messages?session=' + encodeURIComponent(sessionId);
-    if (lastMessageId) {
-      url += '&since=' + encodeURIComponent(lastMessageId);
+  function connectEventSource() {
+    if (eventSource) {
+      eventSource.close();
     }
 
-    fetch(url, {
-      headers: {
-        'X-Device-ID': DEVICE_ID,
-        'X-Device-Name': SENDER_NAME
-      }
-    })
-      .then(function(response) {
-        if (response.status === 403) {
-          // Device has been banned
-          handleKicked();
-          throw new Error('Device banned');
-        }
-        if (!response.ok) throw new Error('Fetch failed');
-        return response.json();
-      })
-      .then(function(data) {
+    var url = '/api/events?session=' + encodeURIComponent(sessionId);
+    eventSource = new EventSource(url);
+
+    eventSource.onmessage = function(event) {
+      try {
+        var message = JSON.parse(event.data);
+        renderMessage(message);
+        
+        // Update connection status
         if (chatStatus) {
           chatStatus.style.color = '#00cc00';
           chatStatus.classList.remove('offline');
         }
+      } catch (error) {
+        console.error('Failed to parse SSE message:', error);
+      }
+    };
 
-        if (data.messages && data.messages.length > 0) {
-          data.messages.forEach(function(msg) {
-            renderMessage(msg);
-          });
-          lastMessageId = data.messages[data.messages.length - 1].id;
-        }
-      })
-      .catch(function(error) {
-        if (chatStatus) {
-          chatStatus.style.color = '#cc0000';
-          chatStatus.classList.add('offline');
-        }
-      });
+    eventSource.onerror = function(error) {
+      console.error('SSE connection error:', error);
+      
+      // Update connection status
+      if (chatStatus) {
+        chatStatus.style.color = '#cc0000';
+        chatStatus.classList.add('offline');
+      }
+
+      // Close and attempt reconnect after delay
+      eventSource.close();
+      eventSource = null;
+      
+      if (!isKicked) {
+        setTimeout(connectEventSource, 5000);
+      }
+    };
+
+    eventSource.onopen = function() {
+      if (chatStatus) {
+        chatStatus.style.color = '#00cc00';
+        chatStatus.classList.remove('offline');
+      }
+    };
   }
 
   /**
@@ -690,10 +698,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function handleKicked() {
     isKicked = true;
     
-    // Stop polling
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      pollInterval = null;
+    // Stop SSE connection
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
     }
 
     if (chatInput) {

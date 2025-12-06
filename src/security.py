@@ -367,7 +367,18 @@ class SecurityManager:
             "X-Frame-Options": "DENY",
             "X-XSS-Protection": "1; mode=block",
             "Referrer-Policy": "no-referrer",
-            "Content-Security-Policy": "default-src 'self'; style-src 'self'",
+            # Strict CSP: Allow inline scripts (required for UI) but block external resources
+            "Content-Security-Policy": (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "connect-src 'self'; "
+                "font-src 'self'; "
+                "object-src 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self'"
+            ),
         }
         # Note: No HSTS - inappropriate for self-signed certs
         return headers

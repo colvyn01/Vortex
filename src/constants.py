@@ -29,8 +29,8 @@ DNS_SERVERS = [("8.8.8.8", 53), ("1.1.1.1", 53)]  # Used to detect local IP via 
 # Streaming Configuration
 
 # Chunk size for streaming file reads/writes.
-# 64KB provides good balance between memory usage and throughput.
-CHUNK_SIZE = 64 * 1024
+# 1MB optimized for modern networks to reduce I/O syscall overhead.
+CHUNK_SIZE = 1024 * 1024
 
 # Maximum size for multipart form headers before rejecting request.
 # Prevents memory exhaustion from malformed or malicious requests.

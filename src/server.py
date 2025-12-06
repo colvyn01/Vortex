@@ -14,10 +14,13 @@ This module provides the core HTTP server functionality including:
 """
 
 import io
+import html
 import json
 import os
+import queue
 import socket
 import ssl
+import threading
 import time
 import uuid
 import zipfile
@@ -53,6 +56,17 @@ if TYPE_CHECKING:
 _chat_sessions: Dict[str, List[Dict[str, Any]]] = {}
 MAX_MESSAGES_PER_SESSION = 100
 MESSAGE_RETENTION_SECONDS = 3600  # 1 hour
+
+# SSE (Server-Sent Events) Infrastructure
+# Real-time message delivery without polling
+
+_sse_queues: Dict[str, List[queue.Queue]] = {}  # session_id -> list of client queues
+_sse_lock = threading.Lock()
+
+# Chat Rate Limiter
+# Dedicated rate limiter for chat endpoints to prevent flooding
+
+_chat_rate_limiter = None  # Initialized in run_server
 
 # Banned Devices Storage
 # Persistent storage for kicked device IDs
@@ -224,22 +238,81 @@ def _add_message(
     if session_id not in _chat_sessions:
         _chat_sessions[session_id] = []
 
+    # XSS Prevention: Escape all user-provided content
     message = {
         "id": str(uuid.uuid4()),
-        "sender": sender,
-        "content": content,
+        "sender": html.escape(sender),
+        "content": html.escape(content),
         "timestamp": time.time(),
         "type": "text"
     }
 
-    # Add device_id if provided
+    # Add device_id if provided (also escape it)
     if device_id:
-        message["device_id"] = device_id
+        message["device_id"] = html.escape(device_id)
 
     _chat_sessions[session_id].append(message)
     _cleanup_old_messages(session_id)
+    
+    # Broadcast to SSE clients
+    _broadcast_message_to_sse(session_id, message)
 
     return message
+
+
+def _broadcast_message_to_sse(session_id: str, message: Dict[str, Any]) -> None:
+    """
+    Broadcast a new message to all SSE clients for a session.
+    
+    Args:
+        session_id: Session identifier.
+        message: Message dictionary to broadcast.
+    """
+    with _sse_lock:
+        if session_id not in _sse_queues:
+            return
+        
+        # Send message to all connected clients for this session
+        dead_queues = []
+        for client_queue in _sse_queues[session_id]:
+            try:
+                client_queue.put_nowait(message)
+            except queue.Full:
+                # Queue full, mark for removal
+                dead_queues.append(client_queue)
+        
+        # Remove dead queues
+        for dq in dead_queues:
+            _sse_queues[session_id].remove(dq)
+
+
+def _register_sse_client(session_id: str, client_queue: queue.Queue) -> None:
+    """
+    Register a new SSE client for a session.
+    
+    Args:
+        session_id: Session identifier.
+        client_queue: Queue for sending messages to this client.
+    """
+    with _sse_lock:
+        if session_id not in _sse_queues:
+            _sse_queues[session_id] = []
+        _sse_queues[session_id].append(client_queue)
+
+
+def _unregister_sse_client(session_id: str, client_queue: queue.Queue) -> None:
+    """
+    Unregister an SSE client.
+    
+    Args:
+        session_id: Session identifier.
+        client_queue: Queue to remove.
+    """
+    with _sse_lock:
+        if session_id in _sse_queues and client_queue in _sse_queues[session_id]:
+            _sse_queues[session_id].remove(client_queue)
+            if not _sse_queues[session_id]:
+                del _sse_queues[session_id]
 
 
 def _get_messages(
@@ -759,8 +832,75 @@ class VortexHandler(SimpleHTTPRequestHandler):
             "session_id": session_id
         })
 
+    def _handle_api_events_sse(self, query_params: Dict[str, List[str]]) -> None:
+        """
+        Handle GET /api/events - Server-Sent Events endpoint for real-time messages.
+        
+        Keeps connection open and streams new messages as they arrive.
+        """
+        session_id = query_params.get("session", [""])[0]
+        
+        if not session_id:
+            self._send_error_safe(400, "Missing session parameter")
+            return
+        
+        # Create queue for this client
+        client_queue: queue.Queue = queue.Queue(maxsize=50)
+        _register_sse_client(session_id, client_queue)
+        
+        try:
+            # Send SSE headers
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self._send_security_headers()
+            self.end_headers()
+            
+            # Send initial heartbeat
+            self.wfile.write(b": heartbeat\n\n")
+            self.wfile.flush()
+            
+            # Send existing messages as initial data
+            existing_messages = _get_messages(session_id)
+            if existing_messages:
+                for msg in existing_messages:
+                    event_data = f"data: {json.dumps(msg)}\n\n"
+                    self.wfile.write(event_data.encode(ENCODING))
+                self.wfile.flush()
+            
+            # Keep connection alive and send new messages
+            while True:
+                try:
+                    # Wait for new message with timeout for heartbeat
+                    message = client_queue.get(timeout=30)
+                    
+                    # Send message as SSE event
+                    event_data = f"data: {json.dumps(message)}\n\n"
+                    self.wfile.write(event_data.encode(ENCODING))
+                    self.wfile.flush()
+                    
+                except queue.Empty:
+                    # Send heartbeat to keep connection alive
+                    self.wfile.write(b": heartbeat\n\n")
+                    self.wfile.flush()
+                    
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            # Client disconnected
+            pass
+        finally:
+            # Clean up
+            _unregister_sse_client(session_id, client_queue)
+
     def _handle_api_messages_post(self) -> None:
         """Handle POST /api/messages - send a chat message."""
+        # Apply chat-specific rate limiting
+        if _chat_rate_limiter:
+            client_ip = self.client_address[0]
+            if not _chat_rate_limiter.check(client_ip):
+                self._send_json({"error": "Too many messages. Please slow down."}, 429)
+                return
+        
         data = self._parse_json_body()
 
         if not data:
@@ -768,8 +908,8 @@ class VortexHandler(SimpleHTTPRequestHandler):
             return
 
         session_id = data.get("session_id")
-        sender = data.get("sender")
-        content = data.get("content")
+        sender = data.get("sender", "")
+        content = data.get("content", "")
         device_id = data.get("device_id")
 
         if not session_id or not sender or not content:
@@ -790,6 +930,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": "Message too long (max 1000 chars)"}, 400)
             return
 
+        # Note: _add_message now applies html.escape() to all fields
         message = _add_message(session_id, sender, content, device_id)
         self._send_json({
             "message": message,
@@ -948,6 +1089,9 @@ class VortexHandler(SimpleHTTPRequestHandler):
         # API Endpoints
         if clean_path == "/api/messages":
             self._handle_api_messages_get(query_params)
+            return
+        elif clean_path == "/api/events":
+            self._handle_api_events_sse(query_params)
             return
         elif clean_path == "/api/directory-size":
             self._handle_api_directory_size(query_params)
@@ -1215,6 +1359,11 @@ def run_server(
 
     # Load banned devices from persistent storage
     _load_banned_devices()
+    
+    # Initialize chat rate limiter (30 messages per minute per IP)
+    global _chat_rate_limiter
+    from .security import _RateLimiter
+    _chat_rate_limiter = _RateLimiter(threshold=30, window_seconds=60)
 
     # Initialize security manager if any security features are enabled
     security_manager = None

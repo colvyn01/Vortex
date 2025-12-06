@@ -12,6 +12,7 @@ directly to disk rather than being buffered entirely in memory.
 
 import os
 import re
+import shutil
 import tempfile
 from dataclasses import dataclass
 from io import BufferedIOBase
@@ -198,39 +199,40 @@ def parse_multipart_streaming(
                 temp_file.write(file_data)
             else:
                 # Large file: need to stream the rest
-                # Keep a buffer for boundary detection at chunk boundaries
+                # Use optimized buffer for boundary detection
                 boundary_len = len(boundary_bytes)
-
+                
+                # Write initial safe data
                 if len(file_data_start) > boundary_len + 2:
-                    # Write data that definitely isn't part of a boundary
                     safe_len = len(file_data_start) - boundary_len - 2
                     temp_file.write(file_data_start[:safe_len])
                     buffer = file_data_start[safe_len:]
                 else:
                     buffer = file_data_start
 
-                # Stream remaining data in chunks
+                # Stream remaining data with optimized chunked reads
                 while remaining > 0:
                     to_read = min(CHUNK_SIZE, remaining)
                     chunk = rfile.read(to_read)
                     if not chunk:
                         break
                     remaining -= len(chunk)
+                    
+                    # Append to buffer and check for boundary
                     buffer += chunk
-
-                    # Check if we've hit the end boundary
                     boundary_pos = buffer.find(boundary_bytes)
+                    
                     if boundary_pos != -1:
-                        # Found boundary - write everything before it
+                        # Found boundary - write final data
                         data_to_write = buffer[:boundary_pos]
                         if data_to_write.endswith(b"\r\n"):
                             data_to_write = data_to_write[:-2]
                         temp_file.write(data_to_write)
                         break
-
-                    # Write safe portion, keep potential boundary overlap
-                    safe_len = len(buffer) - boundary_len - 2
-                    if safe_len > 0:
+                    
+                    # Write all but potential boundary overlap
+                    if len(buffer) > boundary_len + 2:
+                        safe_len = len(buffer) - boundary_len - 2
                         temp_file.write(buffer[:safe_len])
                         buffer = buffer[safe_len:]
                 else:
