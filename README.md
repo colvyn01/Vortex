@@ -1514,7 +1514,6 @@ The project prioritizes simplicity, reliability, and performance while maintaini
 - Repository: [github.com/colvyn01/vortex](https://github.com/colvyn01/vortex)
 
 **Maintainers:**
-- Colvyn Harris
-- Mathan Mohan
+- Colvyn
 
 **Last Updated:** December 2025
