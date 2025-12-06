@@ -817,11 +817,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var currentUrl = window.location.href;
     
-    // Generate QR code with smaller size for better fit
+    // Generate QR code with smaller size for calm aesthetic
     new QRCode(qrCode, {
       text: currentUrl,
-      width: 120,
-      height: 120
+      width: 96,
+      height: 96
     });
 
     // Display URL text

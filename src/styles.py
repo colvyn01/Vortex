@@ -14,21 +14,22 @@ CSS_STYLESHEET = """
 /* Design System & CSS Variables */
 
 :root {
-  /* Color Palette */
-  --bg-color: #d8d8d8;
-  --surface-color: #ffffff;
-  --surface-alt: #fafafa;
-  --text-main: #111111;
-  --text-dim: #555555;
+  /* Color Palette - Science-Backed (Low Visual Fatigue) */
+  --bg-color: #E8F4F1;          /* Soft sage - desaturated, minimal eye strain */
+  --surface-color: #FFFBF7;      /* Warm off-white - reduces glare vs pure white */
+  --surface-alt: #F5F3F0;        /* Warm neutral for secondary surfaces */
+  --text-main: #212121;          /* Dark grey - softer than pure black, 4.5:1+ contrast */
+  --text-dim: #666666;           /* Mid-grey for secondary text */
 
-  /* Accent Colors */
-  --accent-color: #ff3b00;
-  --accent-hover: #e03200;
-  --error-color: #cc0000;
+  /* Accent Colors - Vibrant but Safe */
+  --accent-color: #00796B;       /* Teal - lowest visual fatigue (NIH study) */
+  --accent-hover: #004D40;       /* Deep teal for hover states */
+  --secondary-accent: #D84315;   /* Burnt orange - use sparingly (10% UI) */
+  --error-color: #C62828;        /* Deep red - reserved for errors only */
 
-  /* Borders */
-  --border-color: #000000;
-  --border-light: #dddddd;
+  /* Borders - Industrial Definition */
+  --border-color: #3E3E3E;       /* Charcoal - maintains sharpness without harshness */
+  --border-light: #D0D0D0;       /* Softer border for secondary elements */
   --border-width: 2px;
 
   /* Spacing & Sizing */
@@ -61,8 +62,8 @@ html {
 body {
   background-color: var(--bg-color);
   background-image:
-    linear-gradient(#cfcfcf 1px, transparent 1px),
-    linear-gradient(90deg, #cfcfcf 1px, transparent 1px);
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
   background-size: 20px 20px;
   color: var(--text-main);
   font-family: var(--font-ui);
@@ -1074,27 +1075,27 @@ a:active {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 0.4rem;
   padding: 1rem;
   border-top: 1px solid var(--border-light);
-  margin-top: 1rem;
+  margin: 1rem auto 0;
+  width: 100%;
 }
 
 .qr-title {
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-main);
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
   font-family: var(--font-ui);
-  width: 100%;
-  max-width: max-content;
   text-align: center;
 }
 
 #qr-code {
   border: 1px solid var(--border-light);
-  padding: 0.4rem;
+  padding: 0.3rem;
   background: #ffffff;
   border-radius: var(--radius);
   width: max-content;
