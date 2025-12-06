@@ -244,7 +244,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var lastMessageId = null;
   var pollInterval = null;
   var POLL_INTERVAL_MS = 1000;
-  var SENDER_NAME = 'User-' + Math.random().toString(36).substr(2, 6);
+  var deviceIdentity = generateDeviceIdentity();
+  var SENDER_NAME = deviceIdentity.device_name;
+  var DEVICE_ID = deviceIdentity.device_id;
+  var isKicked = false;
+  var isHost = false;
 
   // UI Elements
   var chatMessages = document.getElementById('chat-messages');
@@ -262,6 +266,311 @@ document.addEventListener('DOMContentLoaded', function() {
   fetchDirectorySize();
 
   /**
+   * Generate or retrieve persistent device identity.
+   * Returns: {device_name: string, device_id: string}
+   */
+  function generateDeviceIdentity() {
+    // Check if identity already exists in localStorage
+    var storedDeviceId = localStorage.getItem('device_id');
+    var storedDeviceName = localStorage.getItem('device_name');
+
+    if (storedDeviceId && storedDeviceName) {
+      // Ensure cookie is set
+      document.cookie = 'device_id=' + storedDeviceId + '; path=/; max-age=31536000';
+      return {
+        device_id: storedDeviceId,
+        device_name: storedDeviceName
+      };
+    }
+
+    // Generate new identity
+    var deviceType = detectDeviceType();
+    var randomId = Math.random().toString(36).substr(2, 3).toUpperCase();
+    var deviceName = deviceType + '-' + randomId;
+    var deviceId = generateUUID();
+
+    // Store in localStorage for persistence
+    localStorage.setItem('device_id', deviceId);
+    localStorage.setItem('device_name', deviceName);
+
+    // Also set as cookie for server-side access
+    document.cookie = 'device_id=' + deviceId + '; path=/; max-age=31536000'; // 1 year
+
+    return {
+      device_id: deviceId,
+      device_name: deviceName
+    };
+  }
+
+  /**
+   * Detect device type from user agent.
+   * Returns: iPhone, Android, Windows, Mac, Linux, or Unknown
+   */
+  function detectDeviceType() {
+    var ua = navigator.userAgent;
+
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Android/i.test(ua)) return 'Android';
+    if (/Windows/i.test(ua)) return 'Windows';
+    if (/Macintosh/i.test(ua)) return 'Mac';
+    if (/Linux/i.test(ua)) return 'Linux';
+
+    return 'Unknown';
+  }
+
+  /**
+   * Generate a UUID v4.
+   */
+  function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0;
+      var v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  /**
+   * Check if current client is the host.
+   */
+  function checkHostStatus() {
+    fetch('/api/host-status', {
+      headers: {
+        'X-Device-ID': DEVICE_ID
+      }
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Host check failed');
+        return response.json();
+      })
+      .then(function(data) {
+        isHost = data.is_host || false;
+        if (isHost) {
+          var hostControls = document.getElementById('host-controls');
+          if (hostControls) {
+            hostControls.style.display = 'flex';
+          }
+          initializeBannedDevicesUI();
+        }
+      })
+      .catch(function(error) {
+        console.error('Host status check failed:', error);
+        isHost = false;
+      });
+  }
+
+  /**
+   * Kick a device by device_id (host only).
+   */
+  function kickDevice(deviceId, deviceName) {
+    if (!isHost) {
+      alert('Only the host can kick users.');
+      return;
+    }
+
+    if (!confirm('Kick ' + deviceName + '?')) {
+      return;
+    }
+
+    fetch('/api/kick', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-ID': DEVICE_ID
+      },
+      body: JSON.stringify({ device_id: deviceId })
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Kick failed');
+        return response.json();
+      })
+      .then(function(data) {
+        console.log('Device kicked:', deviceName);
+      })
+      .catch(function(error) {
+        alert('Failed to kick device: ' + error.message);
+      });
+  }
+
+  /**
+   * Unkick a device by device_id (host only).
+   */
+  function unkickDevice(deviceId) {
+    fetch('/api/unkick', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-ID': DEVICE_ID
+      },
+      body: JSON.stringify({ device_id: deviceId })
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Unkick failed');
+        return response.json();
+      })
+      .then(function(data) {
+        console.log('Device unbanned');
+        loadBannedDevices();
+      })
+      .catch(function(error) {
+        alert('Failed to unkick device: ' + error.message);
+      });
+  }
+
+  /**
+   * Load and display banned devices (host only).
+   */
+  function loadBannedDevices() {
+    if (!isHost) return;
+
+    fetch('/api/banned-devices', {
+      headers: {
+        'X-Device-ID': DEVICE_ID
+      }
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Failed to load banned devices');
+        return response.json();
+      })
+      .then(function(data) {
+        var bannedList = document.getElementById('banned-list');
+        if (!bannedList) return;
+
+        bannedList.innerHTML = '';
+
+        if (data.banned_devices.length === 0) {
+          bannedList.innerHTML = '<div class="banned-empty">No kicked devices</div>';
+          return;
+        }
+
+        data.banned_devices.forEach(function(deviceId) {
+          var item = document.createElement('div');
+          item.className = 'banned-item';
+
+          var idSpan = document.createElement('span');
+          idSpan.className = 'banned-device-id';
+          idSpan.textContent = deviceId.substring(0, 8) + '...';
+          idSpan.title = deviceId;
+
+          var unkickBtn = document.createElement('button');
+          unkickBtn.className = 'unkick-button';
+          unkickBtn.textContent = 'Unkick';
+          unkickBtn.onclick = function() {
+            unkickDevice(deviceId);
+          };
+
+          item.appendChild(idSpan);
+          item.appendChild(unkickBtn);
+          bannedList.appendChild(item);
+        });
+      })
+      .catch(function(error) {
+        console.error('Failed to load banned devices:', error);
+      });
+  }
+
+  /**
+   * Load and display active devices (host only).
+   */
+  function loadActiveDevices() {
+    if (!isHost) return;
+
+    fetch('/api/active-devices?session=' + encodeURIComponent(sessionId), {
+      headers: {
+        'X-Device-ID': DEVICE_ID
+      }
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Failed to load active devices');
+        return response.json();
+      })
+      .then(function(data) {
+        var activeList = document.getElementById('active-list');
+        if (!activeList) return;
+
+        activeList.innerHTML = '';
+
+        if (data.active_devices.length === 0) {
+          activeList.innerHTML = '<div class="active-empty">No active devices</div>';
+          return;
+        }
+
+        data.active_devices.forEach(function(device) {
+          var item = document.createElement('div');
+          item.className = 'active-item';
+
+          var nameSpan = document.createElement('span');
+          nameSpan.className = 'active-device-name';
+          nameSpan.textContent = device.device_name;
+
+          var kickBtn = document.createElement('button');
+          kickBtn.className = 'kick-button-inline';
+          kickBtn.textContent = 'Kick';
+          kickBtn.onclick = function() {
+            kickDevice(device.device_id, device.device_name);
+            setTimeout(loadActiveDevices, 500);
+          };
+
+          item.appendChild(nameSpan);
+          item.appendChild(kickBtn);
+          activeList.appendChild(item);
+        });
+      })
+      .catch(function(error) {
+        console.error('Failed to load active devices:', error);
+      });
+  }
+
+  /**
+   * Initialize devices management UI (host only).
+   */
+  function initializeBannedDevicesUI() {
+    var manageActiveBtn = document.getElementById('manage-active-btn');
+    var manageBansBtn = document.getElementById('manage-bans-btn');
+    var activeSection = document.getElementById('active-section');
+    var bannedSection = document.getElementById('banned-section');
+    var activeClose = document.getElementById('active-close');
+    var bannedClose = document.getElementById('banned-close');
+
+    var activeRefreshInterval = null;
+
+    if (manageActiveBtn && activeSection && activeClose) {
+      manageActiveBtn.addEventListener('click', function() {
+        activeSection.style.display = 'block';
+        bannedSection.style.display = 'none';
+        loadActiveDevices();
+        // Auto-refresh active devices every 3 seconds
+        if (activeRefreshInterval) clearInterval(activeRefreshInterval);
+        activeRefreshInterval = setInterval(loadActiveDevices, 3000);
+      });
+
+      activeClose.addEventListener('click', function() {
+        activeSection.style.display = 'none';
+        if (activeRefreshInterval) {
+          clearInterval(activeRefreshInterval);
+          activeRefreshInterval = null;
+        }
+      });
+    }
+
+    if (manageBansBtn && bannedSection && bannedClose) {
+      manageBansBtn.addEventListener('click', function() {
+        bannedSection.style.display = 'block';
+        activeSection.style.display = 'none';
+        if (activeRefreshInterval) {
+          clearInterval(activeRefreshInterval);
+          activeRefreshInterval = null;
+        }
+        loadBannedDevices();
+      });
+
+      bannedClose.addEventListener('click', function() {
+        bannedSection.style.display = 'none';
+      });
+    }
+  }
+
+  /**
    * Initialize chat polling and message sending.
    */
   function initializeChat() {
@@ -270,6 +579,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start polling for new messages
     fetchNewMessages();
     pollInterval = setInterval(fetchNewMessages, POLL_INTERVAL_MS);
+
+    // Check if this client is the host
+    checkHostStatus();
 
     // Handle message sending
     chatForm.addEventListener('submit', function(e) {
@@ -281,19 +593,32 @@ document.addEventListener('DOMContentLoaded', function() {
       var submitBtn = chatForm.querySelector('button[type=\"submit\"]');
       if (submitBtn) submitBtn.disabled = true;
 
+      // Check if kicked
+      if (isKicked) {
+        return;
+      }
+
       // Send message to server
       fetch('/api/messages', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Device-ID': DEVICE_ID,
+          'X-Device-Name': SENDER_NAME
         },
         body: JSON.stringify({
           session_id: sessionId,
           sender: SENDER_NAME,
+          device_id: DEVICE_ID,
           content: content
         })
       })
       .then(function(response) {
+        if (response.status === 403) {
+          // Device has been kicked
+          handleKicked();
+          throw new Error('Device banned');
+        }
         if (!response.ok) throw new Error('Send failed');
         return response.json();
       })
@@ -323,8 +648,18 @@ document.addEventListener('DOMContentLoaded', function() {
       url += '&since=' + encodeURIComponent(lastMessageId);
     }
 
-    fetch(url)
+    fetch(url, {
+      headers: {
+        'X-Device-ID': DEVICE_ID,
+        'X-Device-Name': SENDER_NAME
+      }
+    })
       .then(function(response) {
+        if (response.status === 403) {
+          // Device has been banned
+          handleKicked();
+          throw new Error('Device banned');
+        }
         if (!response.ok) throw new Error('Fetch failed');
         return response.json();
       })
@@ -350,6 +685,34 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /**
+   * Handle device being kicked.
+   */
+  function handleKicked() {
+    isKicked = true;
+    
+    // Stop polling
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+
+    if (chatInput) {
+      chatInput.disabled = true;
+      chatInput.placeholder = '/// CONNECTION TERMINATED ///';
+      chatInput.style.color = '#ff3b00';
+      chatInput.style.borderColor = '#ff3b00';
+    }
+    if (chatStatus) {
+      chatStatus.style.color = '#ff3b00';
+    }
+
+    // Show blocked message
+    setTimeout(function() {
+      alert('You have been removed from this server by the host.');
+    }, 500);
+  }
+
+  /**
    * Render a chat message to the UI.
    */
   function renderMessage(message) {
@@ -358,13 +721,27 @@ document.addEventListener('DOMContentLoaded', function() {
     var messageDiv = document.createElement('div');
     messageDiv.className = 'chat-message';
     
-    if (message.sender === SENDER_NAME) {
-      messageDiv.classList.add('chat-message-self');
+    // Check by device_id for accurate identity matching
+    var isOwnMessage = message.device_id && message.device_id === DEVICE_ID;
+    if (isOwnMessage) {
+      messageDiv.classList.add('chat-message-own');
     }
 
     var senderDiv = document.createElement('div');
     senderDiv.className = 'chat-sender';
     senderDiv.textContent = message.sender;
+
+    // Add kick button if host and not own message
+    if (isHost && !isOwnMessage && message.device_id) {
+      var kickBtn = document.createElement('button');
+      kickBtn.className = 'kick-button';
+      kickBtn.textContent = '×';
+      kickBtn.title = 'Kick ' + message.sender;
+      kickBtn.onclick = function() {
+        kickDevice(message.device_id, message.sender);
+      };
+      senderDiv.appendChild(kickBtn);
+    }
 
     var contentDiv = document.createElement('div');
     contentDiv.className = 'chat-content';
@@ -449,7 +826,11 @@ document.addEventListener('DOMContentLoaded', function() {
   function fetchDirectorySize() {
     if (!dirSizeInfo) return;
 
-    fetch('/api/directory-size?session=' + encodeURIComponent(sessionId))
+    fetch('/api/directory-size?session=' + encodeURIComponent(sessionId), {
+      headers: {
+        'X-Device-ID': DEVICE_ID
+      }
+    })
       .then(function(response) {
         if (!response.ok) throw new Error('Fetch failed');
         return response.json();

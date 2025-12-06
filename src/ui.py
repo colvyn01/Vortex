@@ -263,11 +263,29 @@ def render_directory_listing(
           <span>Chat</span>
           <span id="chat-status">●</span>
         </div>
+        <div class="active-devices-section" id="active-section" style="display: none;">
+          <div class="active-header">
+            <span>Active Devices</span>
+            <button class="active-close" id="active-close">×</button>
+          </div>
+          <div class="active-list" id="active-list"></div>
+        </div>
+        <div class="banned-devices-section" id="banned-section" style="display: none;">
+          <div class="banned-header">
+            <span>Kicked Devices</span>
+            <button class="banned-close" id="banned-close">×</button>
+          </div>
+          <div class="banned-list" id="banned-list"></div>
+        </div>
         <div class="chat-messages" id="chat-messages"></div>
         <form class="chat-form" id="chat-form">
           <input type="text" id="chat-input" placeholder="Type message..." maxlength="1000" autocomplete="off">
           <button type="submit" class="btn btn-chat">Send</button>
         </form>
+        <div class="host-controls" id="host-controls" style="display: none;">
+          <button class="btn-manage-devices" id="manage-active-btn">Active Devices</button>
+          <button class="btn-manage-bans" id="manage-bans-btn">Kicked Devices</button>
+        </div>
       </section>
     </main>
     """

@@ -659,15 +659,18 @@ a:active {
   50% { opacity: 0.5; }
 }
 
+/* Chat Messages - Terminal Log Style */
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid var(--border-light);
-  padding: 0.5rem;
-  background: var(--surface-alt);
+  border: var(--border-width) solid var(--border-color);
+  padding: 0.6rem;
+  background: var(--surface-color);
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  font-family: var(--font-ui);
   -webkit-overflow-scrolling: touch;
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -677,47 +680,338 @@ a:active {
   display: none;
 }
 
+/* Chat Message - System Log Entry Style */
+
 .chat-message {
-  padding: 0.4rem 0.6rem;
-  border-radius: var(--radius);
-  background: #ffffff;
-  border: 1px solid var(--border-light);
-  max-width: 85%;
+  padding: 0.5rem 0.6rem;
+  border-left: 3px solid var(--border-light);
+  background: var(--surface-alt);
   word-wrap: break-word;
+  font-family: var(--font-ui);
 }
 
-.chat-message-self {
-  background: #fff4e6;
-  border-color: var(--accent-color);
-  align-self: flex-end;
+.chat-message-own {
+  background: #ffffff;
+  border-left-color: var(--accent-color);
+  border-left-width: 3px;
 }
+
+/* Chat Sender - Terminal Prompt Style */
 
 .chat-sender {
   font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--text-dim);
-  margin-bottom: 0.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.3rem;
+  font-family: var(--font-ui);
 }
+
+.chat-message-own .chat-sender {
+  color: var(--accent-color);
+}
+
+/* Kick Button - Host Controls */
+
+.kick-button {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0 0.3rem;
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: var(--font-ui);
+  color: #ff3b00;
+  background: transparent;
+  border: 1px solid #ff3b00;
+  border-radius: 2px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.kick-button:hover {
+  background: #ff3b00;
+  color: #ffffff;
+}
+
+.kick-button:active {
+  transform: scale(0.95);
+}
+
+/* Chat Disconnected State */
+
+.chat-form input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-form input:disabled::placeholder {
+  color: #ff3b00;
+}
+
+/* Host Controls Container */
+
+.host-controls {
+  display: none;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-manage-devices,
+.btn-manage-bans {
+  flex: 1;
+  padding: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: var(--text-main);
+  background: var(--surface-alt);
+  border: var(--border-width) solid var(--border-color);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.15s ease;
+}
+
+.btn-manage-devices:hover {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #ffffff;
+}
+
+.btn-manage-bans:hover {
+  background: #ff3b00;
+  border-color: #ff3b00;
+  color: #ffffff;
+}
+
+/* Active Devices Section */
+
+.active-devices-section {
+  background: var(--surface-main);
+  border: var(--border-width) solid var(--accent-color);
+  margin-bottom: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.active-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: var(--accent-color);
+  color: #ffffff;
+  border-bottom: var(--border-width) solid var(--accent-color);
+  font-size: 0.65rem;
+  font-weight: 800;
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.active-close {
+  background: transparent;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1;
+  padding: 0 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.active-close:hover {
+  background: #ffffff;
+  color: var(--accent-color);
+}
+
+.active-list {
+  padding: 0.5rem;
+}
+
+.active-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.3rem;
+  background: var(--surface-alt);
+  border-left: 3px solid var(--accent-color);
+  font-family: var(--font-ui);
+}
+
+.active-device-name {
+  font-size: 0.75rem;
+  color: var(--text-main);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.active-empty {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+}
+
+.kick-button-inline {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: #ffffff;
+  background: #ff3b00;
+  border: 1px solid #ff3b00;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: all 0.15s ease;
+}
+
+.kick-button-inline:hover {
+  background: #cc2f00;
+  border-color: #cc2f00;
+}
+
+.kick-button-inline:active {
+  transform: scale(0.95);
+}
+
+/* Banned Devices Section */
+
+.banned-devices-section {
+  background: var(--surface-main);
+  border: var(--border-width) solid var(--border-color);
+  margin-bottom: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.banned-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface-alt);
+  border-bottom: var(--border-width) solid var(--border-color);
+  font-size: 0.65rem;
+  font-weight: 800;
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.banned-close {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1;
+  padding: 0 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.banned-close:hover {
+  background: var(--error-color);
+  border-color: var(--error-color);
+  color: #ffffff;
+}
+
+.banned-list {
+  padding: 0.5rem;
+}
+
+.banned-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.3rem;
+  background: var(--surface-alt);
+  border-left: 3px solid var(--error-color);
+  font-family: var(--font-ui);
+}
+
+.banned-device-id {
+  font-size: 0.7rem;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  letter-spacing: 0.3px;
+}
+
+.banned-empty {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+}
+
+.unkick-button {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: var(--text-main);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: all 0.15s ease;
+}
+
+.unkick-button:hover {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #ffffff;
+}
+
+.unkick-button:active {
+  transform: scale(0.95);
+}
+
+/* Chat Content - Monospace Data */
 
 .chat-content {
   font-family: var(--font-ui);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   word-wrap: break-word;
-  line-height: 1.4;
+  line-height: 1.5;
+  color: var(--text-main);
 }
 
 .chat-content a {
   color: var(--accent-color);
-  text-decoration: underline;
+  text-decoration: none;
   font-family: var(--font-ui);
+  border-bottom: 1px solid var(--accent-color);
 }
 
-.chat-timestamp {
-  font-size: 0.6rem;
-  color: var(--text-dim);
-  margin-top: 0.2rem;
-  text-align: right;
+.chat-content a:hover {
+  text-decoration: none;
+  opacity: 0.8;
 }
+
+/* Chat Timestamp - Technical Readout */
+
+.chat-timestamp {
+  font-size: 0.65rem;
+  font-family: var(--font-ui);
+  color: var(--text-dim);
+  margin-top: 0.3rem;
+  text-align: left;
+  letter-spacing: 0.3px;
+}
+
+/* Chat Form - Command Line Style */
 
 .chat-form {
   display: flex;
@@ -725,20 +1019,37 @@ a:active {
   align-items: stretch;
 }
 
+/* Chat Input - Terminal Input Field */
+
 #chat-input {
   flex: 1;
-  padding: 0.4rem 0.6rem;
+  padding: 0.5rem 0.6rem;
   border: var(--border-width) solid var(--border-color);
   font-family: var(--font-ui);
-  font-size: 0.75rem;
-  border-radius: var(--radius);
-  background: #ffffff;
+  font-size: 0.7rem;
+  border-radius: 0;
+  background: var(--surface-color);
+  color: var(--text-main);
   min-height: 44px;
+  letter-spacing: 0.2px;
+}
+
+#chat-input::placeholder {
+  font-family: var(--font-ui);
+  color: var(--text-dim);
+  opacity: 1;
+}
+
+#chat-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  background: #ffffff;
 }
 
 .btn-chat {
   min-width: 4rem;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
+  font-family: var(--font-ui);
 }
 
 @media (max-width: 600px) {
@@ -752,7 +1063,7 @@ a:active {
   }
   
   .chat-message {
-    max-width: 90%;
+    max-width: 100%;
   }
 }
 

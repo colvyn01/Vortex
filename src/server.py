@@ -54,14 +54,113 @@ _chat_sessions: Dict[str, List[Dict[str, Any]]] = {}
 MAX_MESSAGES_PER_SESSION = 100
 MESSAGE_RETENTION_SECONDS = 3600  # 1 hour
 
+# Banned Devices Storage
+# Persistent storage for kicked device IDs
+
+_banned_devices: set = set()
+_BANNED_DEVICES_FILE = Path.home() / ".vortex" / "banned_devices.json"
+
+# Active Devices Tracking
+# Track all devices currently connected to the server
+
+_active_devices: Dict[str, Dict[str, Any]] = {}
+# Key: device_id, Value: {device_name: str, last_seen: float, session_id: str}
+
 # Directory Size Cache
 # Caches directory size calculations to avoid expensive recomputation
 
 _size_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 SIZE_CACHE_DURATION = 30  # seconds
 
+# Server Configuration (for host detection)
+_server_display_address: Optional[str] = None
+
 
 # Chat Helper Functions
+
+
+def _load_banned_devices() -> None:
+    """
+    Load banned device IDs from persistent storage.
+
+    Loads from ~/.vortex/banned_devices.json if it exists.
+    Silently ignores errors if file doesn't exist or is invalid.
+    """
+    global _banned_devices
+    try:
+        if _BANNED_DEVICES_FILE.exists():
+            with open(_BANNED_DEVICES_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    _banned_devices = set(data)
+    except (OSError, json.JSONDecodeError):
+        pass
+
+
+def _save_banned_devices() -> None:
+    """
+    Save banned device IDs to persistent storage.
+
+    Saves to ~/.vortex/banned_devices.json.
+    Creates directory if it doesn't exist.
+    """
+    try:
+        _BANNED_DEVICES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(_BANNED_DEVICES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(list(_banned_devices), f)
+    except OSError:
+        pass  # Non-critical if we can't persist
+
+
+def _register_active_device(
+    device_id: str,
+    device_name: str,
+    session_id: str
+) -> None:
+    """
+    Register or update an active device.
+
+    Args:
+        device_id: Unique device identifier.
+        device_name: Human-readable device name.
+        session_id: Current session identifier.
+    """
+    _active_devices[device_id] = {
+        "device_name": device_name,
+        "device_id": device_id,
+        "last_seen": time.time(),
+        "session_id": session_id
+    }
+
+
+def _get_active_devices(session_id: str) -> List[Dict[str, Any]]:
+    """
+    Get list of active devices for a session.
+
+    Filters out devices inactive for more than 60 seconds.
+
+    Args:
+        session_id: Session identifier.
+
+    Returns:
+        List of active device dictionaries.
+    """
+    now = time.time()
+    cutoff = now - 60  # 60 second timeout
+
+    # Clean up stale devices
+    stale_devices = [
+        did for did, info in _active_devices.items()
+        if info["last_seen"] < cutoff
+    ]
+    for did in stale_devices:
+        del _active_devices[did]
+
+    # Return active devices for this session
+    return [
+        info for info in _active_devices.values()
+        if info["session_id"] == session_id
+    ]
 
 
 def _get_session_id(directory_path: str) -> str:
@@ -104,7 +203,12 @@ def _cleanup_old_messages(session_id: str) -> None:
         messages[:] = messages[-MAX_MESSAGES_PER_SESSION:]
 
 
-def _add_message(session_id: str, sender: str, content: str) -> Dict[str, Any]:
+def _add_message(
+    session_id: str,
+    sender: str,
+    content: str,
+    device_id: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Add a message to a chat session.
 
@@ -112,6 +216,7 @@ def _add_message(session_id: str, sender: str, content: str) -> Dict[str, Any]:
         session_id: Session identifier.
         sender: Name/ID of the message sender.
         content: Message text content.
+        device_id: Optional unique device identifier.
 
     Returns:
         The created message dictionary.
@@ -126,6 +231,10 @@ def _add_message(session_id: str, sender: str, content: str) -> Dict[str, Any]:
         "timestamp": time.time(),
         "type": "text"
     }
+
+    # Add device_id if provided
+    if device_id:
+        message["device_id"] = device_id
 
     _chat_sessions[session_id].append(message)
     _cleanup_old_messages(session_id)
@@ -375,6 +484,78 @@ class VortexHandler(SimpleHTTPRequestHandler):
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "DENY")
 
+    def _is_host(self) -> bool:
+        """
+        Check if the current request is from the host device.
+
+        Host is identified as:
+        - Request from localhost (127.0.0.1 or ::1)
+        - Request from the server's own display address
+
+        Returns:
+            True if request is from host, False otherwise.
+        """
+        client_ip = self.client_address[0]
+
+        # Check localhost
+        if client_ip in ("127.0.0.1", "::1", "localhost"):
+            return True
+
+        # Check if matches server's display address
+        if _server_display_address and client_ip == _server_display_address:
+            return True
+
+        return False
+
+    def _check_device_ban(self) -> bool:
+        """
+        Check if the requesting device is banned.
+
+        Extracts device_id from X-Device-ID header or device_id cookie.
+        If device is banned, sends 403 and returns False.
+        Also registers active devices for tracking.
+
+        Returns:
+            True if request is allowed, False if device is banned.
+        """
+        # Skip ban check for host
+        if self._is_host():
+            return True
+
+        # Get device_id from custom header or cookie
+        device_id = self.headers.get("X-Device-ID")
+        device_name = self.headers.get("X-Device-Name", "Unknown")
+        
+        if not device_id:
+            # Try to get from cookie
+            cookie_header = self.headers.get("Cookie", "")
+            for cookie in cookie_header.split(";"):
+                cookie = cookie.strip()
+                if cookie.startswith("device_id="):
+                    device_id = cookie.split("=", 1)[1]
+                    break
+
+        # Check if device is banned
+        if device_id and device_id in _banned_devices:
+            self._send_error_safe(403, "Access denied: Device has been removed")
+            return False
+
+        # Register active device if we have device info
+        if device_id:
+            # Extract session_id from path
+            parsed = urlparse(self.path)
+            query_params = parse_qs(parsed.query)
+            session_id = query_params.get("session", [""])[0]
+            
+            # If no session in query, try to get from request data for POST
+            if not session_id and self.command == "POST":
+                # We'll register it later in message handler
+                pass
+            elif session_id:
+                _register_active_device(device_id, device_name, session_id)
+
+        return True
+
     def _validate_security(self) -> bool:
         """
         Validate request against security manager.
@@ -589,9 +770,19 @@ class VortexHandler(SimpleHTTPRequestHandler):
         session_id = data.get("session_id")
         sender = data.get("sender")
         content = data.get("content")
+        device_id = data.get("device_id")
 
         if not session_id or not sender or not content:
             self._send_json({"error": "Missing required fields"}, 400)
+            return
+
+        # Register active device
+        if device_id and sender:
+            _register_active_device(device_id, sender, session_id)
+
+        # Check if device is banned
+        if device_id and device_id in _banned_devices:
+            self._send_json({"error": "Device banned"}, 403)
             return
 
         # Validate content length
@@ -599,7 +790,7 @@ class VortexHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": "Message too long (max 1000 chars)"}, 400)
             return
 
-        message = _add_message(session_id, sender, content)
+        message = _add_message(session_id, sender, content, device_id)
         self._send_json({
             "message": message,
             "status": "ok"
@@ -617,6 +808,111 @@ class VortexHandler(SimpleHTTPRequestHandler):
         self._send_json({
             "size": size_info,
             "cached_at": time.time()
+        })
+
+    def _handle_api_host_status(self) -> None:
+        """Handle GET /api/host-status - check if current device is the host."""
+        is_host = self._is_host()
+        self._send_json({"is_host": is_host})
+
+    def _handle_api_kick_post(self) -> None:
+        """Handle POST /api/kick - ban a device (host only)."""
+        # Verify host privileges
+        if not self._is_host():
+            self._send_json({"error": "Unauthorized: Host access required"}, 403)
+            return
+
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0 or content_length > 10000:
+                self._send_json({"error": "Invalid request size"}, 400)
+                return
+
+            body = self.rfile.read(content_length).decode("utf-8")
+            data = json.loads(body)
+        except (ValueError, json.JSONDecodeError):
+            self._send_json({"error": "Invalid JSON"}, 400)
+            return
+
+        device_id = data.get("device_id")
+
+        if not device_id:
+            self._send_json({"error": "Missing device_id"}, 400)
+            return
+
+        # Add to banned set and persist
+        _banned_devices.add(device_id)
+        _save_banned_devices()
+
+        self._send_json({
+            "status": "ok",
+            "message": "Device banned successfully"
+        })
+
+    def _handle_api_unkick_post(self) -> None:
+        """Handle POST /api/unkick - unban a device (host only)."""
+        # Verify host privileges
+        if not self._is_host():
+            self._send_json({"error": "Unauthorized: Host access required"}, 403)
+            return
+
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0 or content_length > 10000:
+                self._send_json({"error": "Invalid request size"}, 400)
+                return
+
+            body = self.rfile.read(content_length).decode("utf-8")
+            data = json.loads(body)
+        except (ValueError, json.JSONDecodeError):
+            self._send_json({"error": "Invalid JSON"}, 400)
+            return
+
+        device_id = data.get("device_id")
+
+        if not device_id:
+            self._send_json({"error": "Missing device_id"}, 400)
+            return
+
+        # Remove from banned set and persist
+        _banned_devices.discard(device_id)
+        _save_banned_devices()
+
+        self._send_json({
+            "status": "ok",
+            "message": "Device unbanned successfully"
+        })
+
+    def _handle_api_banned_devices_get(self) -> None:
+        """Handle GET /api/banned-devices - list all banned devices (host only)."""
+        # Verify host privileges
+        if not self._is_host():
+            self._send_json({"error": "Unauthorized: Host access required"}, 403)
+            return
+
+        # Return list of banned device IDs
+        self._send_json({
+            "banned_devices": list(_banned_devices),
+            "count": len(_banned_devices)
+        })
+
+    def _handle_api_active_devices_get(self, query_params: Dict[str, List[str]]) -> None:
+        """Handle GET /api/active-devices - list all active devices (host only)."""
+        # Verify host privileges
+        if not self._is_host():
+            self._send_json({"error": "Unauthorized: Host access required"}, 403)
+            return
+
+        session_id = query_params.get("session", [""])[0]
+
+        if not session_id:
+            self._send_json({"error": "Missing session parameter"}, 400)
+            return
+
+        active_devices = _get_active_devices(session_id)
+        self._send_json({
+            "active_devices": active_devices,
+            "count": len(active_devices)
         })
 
     # HTTP Method Handlers
@@ -640,6 +936,10 @@ class VortexHandler(SimpleHTTPRequestHandler):
         if not self._validate_security():
             return
 
+        # Check if device is banned
+        if not self._check_device_ban():
+            return
+
         # Parse URL for query parameters
         parsed = urlparse(self.path)
         query_params = parse_qs(parsed.query)
@@ -651,6 +951,15 @@ class VortexHandler(SimpleHTTPRequestHandler):
             return
         elif clean_path == "/api/directory-size":
             self._handle_api_directory_size(query_params)
+            return
+        elif clean_path == "/api/host-status":
+            self._handle_api_host_status()
+            return
+        elif clean_path == "/api/banned-devices":
+            self._handle_api_banned_devices_get()
+            return
+        elif clean_path == "/api/active-devices":
+            self._handle_api_active_devices_get(query_params)
             return
 
         path = self.translate_path(parsed.path)
@@ -755,6 +1064,10 @@ class VortexHandler(SimpleHTTPRequestHandler):
         if not self._validate_security():
             return
 
+        # Check if device is banned
+        if not self._check_device_ban():
+            return
+
         # Parse URL path
         parsed = urlparse(self.path)
         clean_path = unquote(parsed.path)
@@ -762,6 +1075,12 @@ class VortexHandler(SimpleHTTPRequestHandler):
         # API Endpoints
         if clean_path == "/api/messages":
             self._handle_api_messages_post()
+            return
+        elif clean_path == "/api/kick":
+            self._handle_api_kick_post()
+            return
+        elif clean_path == "/api/unkick":
+            self._handle_api_unkick_post()
             return
 
         content_type = self.headers.get("Content-Type", "")
@@ -894,6 +1213,9 @@ def run_server(
     """
     resolved_directory = str(Path(directory).resolve())
 
+    # Load banned devices from persistent storage
+    _load_banned_devices()
+
     # Initialize security manager if any security features are enabled
     security_manager = None
     if use_https or use_token_auth:
@@ -915,6 +1237,11 @@ def run_server(
         return VortexHandler(*args, directory=resolved_directory, **kwargs)
 
     bind_address, display_address = get_local_ip(address_mode)
+    
+    # Set global display address for host detection
+    global _server_display_address
+    _server_display_address = display_address
+    
     server_address = (bind_address, port)
     httpd = PooledHTTPServer(server_address, handler_factory, max_workers=MAX_WORKERS)
 
