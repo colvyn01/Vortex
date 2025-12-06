@@ -74,6 +74,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
+  overflow-x: hidden;
 }
 
 .app-root {
@@ -164,6 +165,7 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .device-subheader span {
@@ -178,22 +180,57 @@ body {
 .device-main {
   padding: 0.8rem 1rem 0.8rem;
   display: grid;
-  grid-template-columns: 1.9fr 1.1fr;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-areas: "files upload chat";
   column-gap: 1rem;
   row-gap: 0.75rem;
   min-height: 0;
+}
+
+.panel-files {
+  grid-area: files;
+  min-width: 0;
+}
+
+.panel-upload {
+  grid-area: upload;
+  min-width: 0;
+}
+
+.panel-chat {
+  grid-area: chat;
+  min-width: 0;
+}
+
+/* Medium screens: Adjust proportions */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .device-main {
+    grid-template-columns: 1.5fr 1fr 1fr;
+  }
 }
 
 /* Tablet/Mobile: Stack columns */
 @media (max-width: 900px) {
   .device-main {
     grid-template-columns: 1fr;
+    grid-template-areas: "files" "upload" "chat";
     grid-auto-rows: auto;
   }
 
   /* Upload panel appears first on mobile */
   .panel-upload {
     order: -1;
+    grid-area: upload;
+  }
+  
+  .panel-files {
+    order: 0;
+    grid-area: files;
+  }
+  
+  .panel-chat {
+    order: 1;
+    grid-area: chat;
   }
 }
 
@@ -220,12 +257,21 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-width: 0;
 }
 
-.panel-title span {
   font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.panel-title span:first-child {
+  flex-shrink: 0;
+  margin-right: 0.5rem;
 }
 
 .path-label {
@@ -242,27 +288,22 @@ body {
 
 .upload-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-@media (min-width: 640px) {
-  .upload-row {
-    flex-direction: row;
-    align-items: center;
-  }
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.25rem;
 }
 
 /* Custom File Input */
 
 .file-input {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .file-input input[type="file"] {
@@ -278,30 +319,37 @@ body {
   background: var(--accent-color);
   color: #ffffff;
   border: var(--border-width) solid var(--border-color);
-  padding: 0.4rem 0.9rem;
+  padding: 0.4rem;
   text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  min-width: 7rem;
+  font-weight: 600;
+  font-size: 0.65rem;
+  letter-spacing: 0.2px;
+  min-width: 3.5rem;
   text-align: center;
   min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
 }
 
 .file-name {
   flex: 1;
-  padding: 0.3rem 0.5rem;
+  padding: 0 0.3rem;
   border: 1px dashed #bbbbbb;
   color: var(--text-dim);
   white-space: nowrap;
+  font-size: 0.65rem;
   overflow: hidden;
   text-overflow: ellipsis;
   background: #fafafa;
   min-height: 44px;
-  display: flex;
-  align-items: center;
+  display: block;
+  line-height: 42px;
+  min-width: 0;
 }
 
 
@@ -313,18 +361,22 @@ body {
   background: #ffffff;
   border: var(--border-width) solid var(--border-color);
   color: var(--text-main);
-  padding: 0.4rem 0.9rem;
+  padding: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.08s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 6rem;
+  min-width: 3.5rem;
   min-height: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -374,12 +426,20 @@ body {
 
   .file-input {
     flex-direction: column;
+    flex: none;
+    width: 100%;
   }
 
   .file-button,
-  .file-name,
-  .btn {
+  .file-name {
     width: 100%;
+    padding: 0.45rem 0.6rem;
+    letter-spacing: 0.1px;
+  }
+
+  .upload-row .btn {
+    width: 100%;
+    flex-shrink: 1;
   }
 }
 
@@ -557,5 +617,201 @@ a:active {
 
 .upload-error.active {
   display: block;
+}
+
+
+/* Chat Panel */
+
+.panel-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 350px;
+  max-height: 550px;
+}
+
+@media (max-width: 1200px) and (min-width: 901px) {
+  .panel-chat {
+    min-height: 300px;
+    max-height: 450px;
+  }
+}
+
+@media (max-width: 900px) {
+  .panel-chat {
+    min-height: 300px;
+    max-height: 500px;
+  }
+}
+
+#chat-status {
+  font-size: 0.8rem;
+  color: #00cc00;
+  animation: pulse 2s infinite;
+}
+
+#chat-status.offline {
+  color: #cc0000;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  padding: 0.5rem;
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.chat-messages::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-message {
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  max-width: 85%;
+  word-wrap: break-word;
+}
+
+.chat-message-self {
+  background: #fff4e6;
+  border-color: var(--accent-color);
+  align-self: flex-end;
+}
+
+.chat-sender {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+.chat-content {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.chat-content a {
+  color: var(--accent-color);
+  text-decoration: underline;
+  font-family: var(--font-sans);
+}
+
+.chat-timestamp {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+  text-align: right;
+}
+
+.chat-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+#chat-input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: var(--border-width) solid var(--border-color);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  border-radius: var(--radius);
+  background: #ffffff;
+  min-height: 44px;
+}
+
+.btn-chat {
+  min-width: 4rem;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 600px) {
+  .chat-form {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  #chat-input {
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+  
+  .chat-message {
+    max-width: 90%;
+  }
+}
+
+
+/* QR Code Container */
+
+.qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--border-light);
+  margin-top: 1rem;
+}
+
+.qr-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+#qr-code {
+  border: 1px solid var(--border-light);
+  padding: 0.4rem;
+  background: #ffffff;
+  border-radius: var(--radius);
+}
+
+#qr-code img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.qr-url {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  word-break: break-all;
+  text-align: center;
+  max-width: 100%;
+  line-height: 1.3;
+}
+
+@media (max-width: 900px) {
+  .qr-code-container {
+    display: none;
+  }
+}
+
+
+/* Directory Size Info */
+
+#dir-size-info {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 """

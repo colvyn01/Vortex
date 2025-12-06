@@ -227,5 +227,242 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     return bytes.toFixed(1) + ' ' + units[i];
   }
+
+
+  // Chat and Real-Time Features
+  // Cross-device chat with polling, QR code generation, and directory size display
+
+  var sessionData = document.getElementById('session-data');
+  if (!sessionData) return;
+
+  var sessionId = sessionData.getAttribute('data-session-id');
+  var baseDir = sessionData.getAttribute('data-base-dir');
+
+  if (!sessionId) return;
+
+  // Chat State
+  var lastMessageId = null;
+  var pollInterval = null;
+  var POLL_INTERVAL_MS = 1000;
+  var SENDER_NAME = 'User-' + Math.random().toString(36).substr(2, 6);
+
+  // UI Elements
+  var chatMessages = document.getElementById('chat-messages');
+  var chatForm = document.getElementById('chat-form');
+  var chatInput = document.getElementById('chat-input');
+  var chatStatus = document.getElementById('chat-status');
+  var dirSizeInfo = document.getElementById('dir-size-info');
+  var qrContainer = document.getElementById('qr-container');
+  var qrCode = document.getElementById('qr-code');
+  var qrUrlText = document.getElementById('qr-url-text');
+
+  // Initialize Features
+  initializeChat();
+  initializeQRCode();
+  fetchDirectorySize();
+
+  /**
+   * Initialize chat polling and message sending.
+   */
+  function initializeChat() {
+    if (!chatMessages || !chatForm || !chatInput) return;
+
+    // Start polling for new messages
+    fetchNewMessages();
+    pollInterval = setInterval(fetchNewMessages, POLL_INTERVAL_MS);
+
+    // Handle message sending
+    chatForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      var content = chatInput.value.trim();
+      if (!content) return;
+
+      var submitBtn = chatForm.querySelector('button[type=\"submit\"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      // Send message to server
+      fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          sender: SENDER_NAME,
+          content: content
+        })
+      })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Send failed');
+        return response.json();
+      })
+      .then(function(data) {
+        chatInput.value = '';
+        if (submitBtn) submitBtn.disabled = false;
+        // Message will appear via polling
+      })
+      .catch(function(error) {
+        console.error('Failed to send message:', error);
+        if (submitBtn) submitBtn.disabled = false;
+      });
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+      if (pollInterval) clearInterval(pollInterval);
+    });
+  }
+
+  /**
+   * Fetch new chat messages from server.
+   */
+  function fetchNewMessages() {
+    var url = '/api/messages?session=' + encodeURIComponent(sessionId);
+    if (lastMessageId) {
+      url += '&since=' + encodeURIComponent(lastMessageId);
+    }
+
+    fetch(url)
+      .then(function(response) {
+        if (!response.ok) throw new Error('Fetch failed');
+        return response.json();
+      })
+      .then(function(data) {
+        if (chatStatus) {
+          chatStatus.style.color = '#00cc00';
+          chatStatus.classList.remove('offline');
+        }
+
+        if (data.messages && data.messages.length > 0) {
+          data.messages.forEach(function(msg) {
+            renderMessage(msg);
+          });
+          lastMessageId = data.messages[data.messages.length - 1].id;
+        }
+      })
+      .catch(function(error) {
+        if (chatStatus) {
+          chatStatus.style.color = '#cc0000';
+          chatStatus.classList.add('offline');
+        }
+      });
+  }
+
+  /**
+   * Render a chat message to the UI.
+   */
+  function renderMessage(message) {
+    if (!chatMessages) return;
+
+    var messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message';
+    
+    if (message.sender === SENDER_NAME) {
+      messageDiv.classList.add('chat-message-self');
+    }
+
+    var senderDiv = document.createElement('div');
+    senderDiv.className = 'chat-sender';
+    senderDiv.textContent = message.sender;
+
+    var contentDiv = document.createElement('div');
+    contentDiv.className = 'chat-content';
+    
+    // Sanitize and linkify content
+    var sanitized = escapeHtml(message.content);
+    var linkified = linkifyUrls(sanitized);
+    contentDiv.innerHTML = linkified;
+
+    var timeDiv = document.createElement('div');
+    timeDiv.className = 'chat-timestamp';
+    timeDiv.textContent = formatTime(message.timestamp);
+
+    messageDiv.appendChild(senderDiv);
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timeDiv);
+
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  /**
+   * Escape HTML to prevent XSS.
+   */
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * Convert URLs in text to clickable links.
+   */
+  function linkifyUrls(text) {
+    var urlRegex = /(https?:\\/\\/[^\\s]+)/g;
+    return text.replace(urlRegex, function(url) {
+      return '<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener noreferrer\">' + url + '</a>';
+    });
+  }
+
+  /**
+   * Format Unix timestamp to HH:MM.
+   */
+  function formatTime(timestamp) {
+    var date = new Date(timestamp * 1000);
+    var hours = date.getHours().toString().padStart(2, '0');
+    var minutes = date.getMinutes().toString().padStart(2, '0');
+    return hours + ':' + minutes;
+  }
+
+  /**
+   * Initialize QR code generation (desktop only).
+   */
+  function initializeQRCode() {
+    if (!qrContainer || !qrCode || !qrUrlText) return;
+
+    // Skip on mobile/tablet
+    if (window.innerWidth < 900) return;
+
+    // Wait for QRCode library to load
+    if (typeof QRCode === 'undefined') {
+      setTimeout(initializeQRCode, 100);
+      return;
+    }
+
+    var currentUrl = window.location.href;
+    
+    // Generate QR code with smaller size for better fit
+    new QRCode(qrCode, {
+      text: currentUrl,
+      width: 120,
+      height: 120
+    });
+
+    // Display URL text
+    qrUrlText.textContent = currentUrl;
+  }
+
+  /**
+   * Fetch directory size information.
+   */
+  function fetchDirectorySize() {
+    if (!dirSizeInfo) return;
+
+    fetch('/api/directory-size?session=' + encodeURIComponent(sessionId))
+      .then(function(response) {
+        if (!response.ok) throw new Error('Fetch failed');
+        return response.json();
+      })
+      .then(function(data) {
+        if (data.size) {
+          dirSizeInfo.textContent = 'Total: ' + data.size.total_formatted + 
+            ' (' + data.size.file_count + ' files)';
+        }
+      })
+      .catch(function(error) {
+        dirSizeInfo.textContent = 'Size unavailable';
+      });
+  }
 });
 """
