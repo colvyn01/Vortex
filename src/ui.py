@@ -234,7 +234,6 @@ def render_directory_listing(
       <section class="panel panel-upload">
         <div class="panel-title">
           <span>Upload</span>
-          <span>{base_name}</span>
         </div>
         <p class="path-label">Select files to upload (no size limit)</p>
         <form method="post" enctype="multipart/form-data">
